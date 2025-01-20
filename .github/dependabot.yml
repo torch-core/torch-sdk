@@ -1,0 +1,10 @@
+version: 2
+updates:
+  - package-ecosystem: 'npm'
+    directory: '/'
+    schedule:
+      interval: 'daily'
+    allow:
+      - dependency-name: '@torch-finance/core'
+      - dependency-name: '@torch-finance/dex-contract-wrapper'
+      - dependency-name: '@torch-finance/simulator'
