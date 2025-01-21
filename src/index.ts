@@ -294,17 +294,22 @@ export class TorchSDK {
       if (parsedParams.mode === 'single' && simulateResult.amountOuts.length !== 1) {
         throw new Error('In single mode, amount out length must be 1');
       }
-      minAmountOuts = simulateResult.amountOuts;
+      minAmountOuts = Allocation.createAllocations(
+        pool.assets.map((asset, i) => ({
+          asset,
+          value: simulateResult.amountOuts[i]!,
+        })),
+      );
 
       if (parsedParams.nextWithdraw) {
-        const nextLpAmount = simulateResult.amountOuts.find((allocation) =>
-          allocation.asset.jettonMaster?.equals(nextPool!.address),
-        );
-        if (!nextLpAmount) throw new Error('Next pool LP amount not found');
+        const nextLpIndex = pool.assets.findIndex((asset) => asset.jettonMaster?.equals(nextPool!.address));
+        if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
+        const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
+        if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
 
         const nextSimulator = PoolSimulator.create(nextPool!);
         const nextSimulateResult = nextSimulator.withdraw({
-          lpAmount: nextLpAmount.value,
+          lpAmount: nextLpAmount,
           assetOut: parsedParams.withdrawAsset,
           rates: signedRates?.payload.rates,
         });
@@ -316,7 +321,14 @@ export class TorchSDK {
         if (parsedParams.mode === 'single' && nextSimulateResult.amountOuts.length !== 1) {
           throw new Error('In single mode, amount out length must be 1');
         }
-        nextMinAmountOuts = nextSimulateResult.amountOuts;
+        nextMinAmountOuts = nextPool
+          ? Allocation.createAllocations(
+              nextPool.assets.map((asset, i) => ({
+                asset,
+                value: nextSimulateResult.amountOuts[i]!,
+              })),
+            )
+          : null;
       }
     }
 
