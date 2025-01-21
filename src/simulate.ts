@@ -28,6 +28,10 @@ export class Simulator {
     this.tonClient = config.tonClient;
   }
 
+  setMode(mode: 'offchain' | 'onchain') {
+    this.mode = mode;
+  }
+
   private transformPoolData(poolData: PoolData): SimulatorState {
     return {
       initA: poolData.basicData.initA,
