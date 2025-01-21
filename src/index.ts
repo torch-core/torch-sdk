@@ -9,7 +9,7 @@ import {
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
-import { ITorchAPI, TorchAPI } from './api';
+import { TorchAPI } from './api';
 import { Address, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
 import { DepositParams } from './types/deposit';
@@ -33,7 +33,7 @@ export type TorchSDKOptions = {
 
 export class TorchSDK {
   public readonly tonClient: TonClient4;
-  public readonly api: ITorchAPI;
+  public readonly api: TorchAPI;
   private readonly factory: OpenedContract<Factory>;
   private readonly simulator: Simulator;
   private cachedPools: PoolResponse[];

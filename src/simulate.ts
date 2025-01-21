@@ -5,20 +5,20 @@ import {
   SimulateSwapParams,
   SimulateWithdrawParams,
 } from '@torch-finance/dex-contract-wrapper';
-import { ITorchAPI } from './api';
 import { Address } from '@ton/core';
 import { PoolSimulator, SimulatorState } from '@torch-finance/simulator';
 import { TonClient4 } from '@ton/ton';
 import { Allocation } from '@torch-finance/core';
+import { TorchAPI } from './api';
 
 interface SimulatorConfig {
-  torchAPI: ITorchAPI;
+  torchAPI: TorchAPI;
   tonClient: TonClient4;
   mode: 'offchain' | 'onchain';
 }
 
 export class Simulator {
-  private torchApi: ITorchAPI;
+  private torchApi: TorchAPI;
   private mode: 'offchain' | 'onchain';
   private tonClient: TonClient4;
 

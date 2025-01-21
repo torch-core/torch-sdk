@@ -16,29 +16,12 @@ import {
   SimulatorSwapResult,
 } from '@torch-finance/dex-contract-wrapper';
 
-export interface ITorchAPI {
-  // Oracle API
-  getSignedRates(poolAddresses: Address[]): Promise<SignedRate>;
-
-  // Indexer API
-  getExchangableAssets(assetIn?: Asset): Promise<AssetResponse[]>;
-  getPools(): Promise<PoolResponse[]>;
-  getPoolByAddress(address: Address): Promise<PoolResponse>;
-  getHops(assetIn: Asset, assetOut: Asset): Promise<Hop[]>;
-  getActiveLpAccounts(lpProvider: Address): Promise<LpAccountResponse[]>;
-
-  // Simulator API
-  simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult>;
-  simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult>;
-  simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult>;
-}
-
 export type TorchAPIOptions = {
   indexerEndpoint: string;
   oracleEndpoint: string;
 };
 
-export class TorchAPI implements ITorchAPI {
+export class TorchAPI {
   private readonly indexer: AxiosInstance;
   private readonly oracle: AxiosInstance;
 
