@@ -1,7 +1,6 @@
 import { Address } from '@ton/core';
 import { Slippage, SlippageSchema } from './slippage';
 import { AddressSchema, Allocation, Asset, AssetSchema, Marshallable } from '@torch-finance/core';
-import { ExtraPayload } from './extraPayload';
 import { z } from 'zod';
 
 export type WithdrawMode = 'single' | 'balanced';
@@ -12,7 +11,7 @@ interface BaseWithdraw {
   queryId: bigint;
   slippageTolerance?: Slippage;
   minAmountOuts?: Allocation | Allocation[];
-  extraPayload?: ExtraPayload;
+  extraPayload?: null; // TODO: implement extraPayload when referral is implemented
 }
 
 // Strictly define NextWithdraw based on mode
@@ -75,7 +74,7 @@ export class Withdraw implements Marshallable {
   queryId: bigint;
   slippageTolerance?: Slippage;
   minAmountOuts?: Allocation[];
-  extraPayload?: ExtraPayload;
+  extraPayload?: null; // TODO: implement extraPayload when referral is implemented
   withdrawAsset?: Asset;
   nextWithdraw?: NextWithdraw;
 
@@ -160,7 +159,7 @@ export class Withdraw implements Marshallable {
       queryId: this.queryId === undefined ? undefined : this.queryId.toString(),
       slippageTolerance: this.slippageTolerance ? this.slippageTolerance.toString() : undefined,
       minAmountOuts: this.minAmountOuts ? this.minAmountOuts?.map((a) => a.toJSON()) : undefined,
-      extraPayload: this.extraPayload ? this.extraPayload.toJSON() : undefined,
+      extraPayload: this.extraPayload,
     };
   }
 }

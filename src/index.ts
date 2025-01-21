@@ -237,9 +237,9 @@ export class TorchSDK {
         signedRate: signedRates,
         minLpAmount: minAmountOut,
         recipient: parsedParams.recipient,
-        fulfillPayload: parsedParams.fulfillPayload?.toCell(),
-        rejectPayload: parsedParams.rejectPayload?.toCell(),
-        extraPayload: parsedParams.extraPayload?.toDict(),
+        fulfillPayload: parsedParams.fulfillPayload,
+        rejectPayload: parsedParams.rejectPayload,
+        extraPayload: parsedParams.extraPayload,
       },
       next: parsedParams.nextDeposit
         ? {
