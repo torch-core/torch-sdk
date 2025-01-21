@@ -1,4 +1,14 @@
-import { Factory, SimulatorSwapResult, SwapNext, WithdrawNext } from '@torch-finance/dex-contract-wrapper';
+import {
+  Factory,
+  SimulateDepositParams,
+  SimulateSwapParams,
+  SimulateWithdrawParams,
+  SimulateWithdrawResult,
+  SimulatorDepositResult,
+  SimulatorSwapResult,
+  SwapNext,
+  WithdrawNext,
+} from '@torch-finance/dex-contract-wrapper';
 import { ITorchAPI, TorchAPI } from './api';
 import { Address, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
@@ -463,5 +473,17 @@ export class TorchSDK {
       });
     }
     throw new Error(`Invalid action: ${firstHop.action}`);
+  }
+
+  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult> {
+    return await this.simulator.swap(poolAddress, params);
+  }
+
+  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult> {
+    return await this.simulator.deposit(poolAddress, params);
+  }
+
+  async simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult> {
+    return await this.simulator.withdraw(poolAddress, params);
   }
 }
