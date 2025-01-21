@@ -330,7 +330,7 @@ export class TorchSDK {
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
       signedRate: signedRates,
-      extraPayload: parsedParams.extraPayload?.toDict(),
+      extraPayload: undefined, // TODO: Add extra payload
       config:
         parsedParams.mode === 'single'
           ? {
@@ -421,9 +421,9 @@ export class TorchSDK {
           minAmountOut: minAmountOut,
           recipient: parsedParams.recipient,
           signedRate: signedRates,
-          fulfillPayload: parsedParams.fulfillPayload?.toCell(),
-          rejectPayload: parsedParams.rejectPayload?.toCell(),
-          extraPayload: parsedParams.extraPayload?.toDict(),
+          fulfillPayload: parsedParams.fulfillPayload,
+          rejectPayload: parsedParams.rejectPayload,
+          extraPayload: undefined, // TODO: Add extra payload
         },
         next: buildSwapNext(restHops) as SwapNext | WithdrawNext,
       });
@@ -442,9 +442,9 @@ export class TorchSDK {
           minLpAmount: minAmountOut,
           signedRate: signedRates,
           recipient: parsedParams.recipient,
-          fulfillPayload: parsedParams.fulfillPayload?.toCell(),
-          rejectPayload: parsedParams.rejectPayload?.toCell(),
-          extraPayload: parsedParams.extraPayload?.toDict(),
+          fulfillPayload: parsedParams.fulfillPayload,
+          rejectPayload: parsedParams.rejectPayload,
+          extraPayload: undefined, // TODO: Add extra payload
         },
       });
       if (senderArgs.length === 0) throw new Error('No sender arguments found');

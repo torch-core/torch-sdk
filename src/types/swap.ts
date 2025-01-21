@@ -3,8 +3,7 @@ import { Asset, AddressSchema } from '@torch-finance/core';
 import { MinAmountOut } from './common';
 import { QueryId } from './common';
 import { SlippageSchema } from './slippage';
-import { CallbackPayload } from './callbackPayload';
-import { ExtraPayload } from './extraPayload';
+import { Cell } from '@ton/core';
 
 const GeneralSwapParamsSchema = z.object({
   assetIn: z.instanceof(Asset),
@@ -15,9 +14,9 @@ const GeneralSwapParamsSchema = z.object({
   slippageTolerance: SlippageSchema.optional(),
   minAmountOut: MinAmountOut.optional(),
   recipient: AddressSchema.optional(),
-  fulfillPayload: z.instanceof(CallbackPayload).optional(),
-  rejectPayload: z.instanceof(CallbackPayload).optional(),
-  extraPayload: z.instanceof(ExtraPayload).optional(),
+  fulfillPayload: z.instanceof(Cell).optional(),
+  rejectPayload: z.instanceof(Cell).optional(),
+  extraPayload: z.null().optional(),
 });
 
 export const ExactInParamsSchema = GeneralSwapParamsSchema.extend({
@@ -70,9 +69,9 @@ export const SwapParamsSchema = z
           slippageTolerance: data.slippageTolerance ? data.slippageTolerance.toString() : undefined,
           minAmountOut: data.minAmountOut ? data.minAmountOut.toString() : undefined,
           recipient: data.recipient ? data.recipient.toString() : undefined,
-          fulfillPayload: data.fulfillPayload ? data.fulfillPayload.toJSON() : undefined,
-          rejectPayload: data.rejectPayload ? data.rejectPayload.toJSON() : undefined,
-          extraPayload: data.extraPayload ? data.extraPayload.toJSON() : undefined,
+          fulfillPayload: data.fulfillPayload ? data.fulfillPayload : undefined,
+          rejectPayload: data.rejectPayload ? data.rejectPayload : undefined,
+          extraPayload: data.extraPayload ? data.extraPayload : undefined,
         };
       },
     };
