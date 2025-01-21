@@ -7,6 +7,14 @@ import axios, { AxiosInstance } from 'axios';
 import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/asset';
 import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
+import {
+  SimulateDepositParams,
+  SimulateSwapParams,
+  SimulateWithdrawParams,
+  SimulateWithdrawResult,
+  SimulatorDepositResult,
+  SimulatorSwapResult,
+} from '@torch-finance/dex-contract-wrapper';
 
 export interface ITorchAPI {
   // Oracle API
@@ -18,6 +26,11 @@ export interface ITorchAPI {
   getPoolByAddress(address: Address): Promise<PoolResponse>;
   getHops(assetIn: Asset, assetOut: Asset): Promise<Hop[]>;
   getActiveLpAccounts(lpProvider: Address): Promise<LpAccountResponse[]>;
+
+  // Simulator API
+  simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult>;
+  simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult>;
+  simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult>;
 }
 
 export type TorchAPIOptions = {
@@ -125,5 +138,55 @@ export class TorchAPI implements ITorchAPI {
       },
     });
     return response.data.map((hop) => HopSchema.parse(hop));
+  }
+
+  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult> {
+    const { data } = await this.indexer.post<{
+      amountOut: string;
+      virtualPriceBefore: string;
+      virtualPriceAfter: string;
+    }>('/simulate/swap', {
+      params: {
+        poolAddress: poolAddress.toString(),
+        ...params,
+      },
+    });
+    return {
+      amountOut: BigInt(data.amountOut),
+      virtualPriceBefore: BigInt(data.virtualPriceBefore),
+      virtualPriceAfter: BigInt(data.virtualPriceAfter),
+    };
+  }
+
+  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult> {
+    const { data } = await this.indexer.post<{
+      lpTokenOut: string;
+      virtualPriceBefore: string;
+      virtualPriceAfter: string;
+      lpTotalSupply: string;
+    }>('/simulate/deposit', {
+      params,
+    });
+    return {
+      lpTokenOut: BigInt(data.lpTokenOut),
+      virtualPriceBefore: BigInt(data.virtualPriceBefore),
+      virtualPriceAfter: BigInt(data.virtualPriceAfter),
+      lpTotalSupply: BigInt(data.lpTotalSupply),
+    };
+  }
+
+  async simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult> {
+    const { data } = await this.indexer.post<{
+      amountOuts: string[];
+      virtualPriceBefore: string;
+      virtualPriceAfter: string;
+    }>('/simulate/withdraw', {
+      params,
+    });
+    return {
+      amountOuts: data.amountOuts.map((amountOut) => BigInt(amountOut)),
+      virtualPriceBefore: BigInt(data.virtualPriceBefore),
+      virtualPriceAfter: BigInt(data.virtualPriceAfter),
+    };
   }
 }

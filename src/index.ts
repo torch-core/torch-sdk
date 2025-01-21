@@ -1,7 +1,6 @@
 import { Factory, SimulatorSwapResult, SwapNext, WithdrawNext } from '@torch-finance/dex-contract-wrapper';
 import { ITorchAPI, TorchAPI } from './api';
 import { Address, OpenedContract, SenderArguments } from '@ton/core';
-import { PoolSimulator } from '@torch-finance/simulator';
 import { TonClient4 } from '@ton/ton';
 import { DepositParams } from './types/deposit';
 import { DepositParamsSchema } from './types/deposit';
@@ -13,6 +12,7 @@ import { ExactInParamsSchema, SwapParamsSchema } from './types/swap';
 import { SwapParams } from './types/swap';
 import { Hop, HopAction, HopSchema } from './types/hop';
 import { buildSwapNext } from './utils/builder';
+import { Simulator } from './simulate';
 
 export type TorchSDKOptions = {
   indexerEndpoint?: string;
@@ -25,6 +25,7 @@ export class TorchSDK {
   public readonly tonClient: TonClient4;
   public readonly api: ITorchAPI;
   private readonly factory: OpenedContract<Factory>;
+  private readonly simulator: Simulator;
   private cachedPools: PoolResponse[];
 
   constructor(readonly options: TorchSDKOptions) {
@@ -42,6 +43,11 @@ export class TorchSDK {
     this.api = new TorchAPI({
       indexerEndpoint,
       oracleEndpoint,
+    });
+    this.simulator = new Simulator({
+      torchAPI: this.api,
+      tonClient: this.tonClient,
+      mode: 'offchain',
     });
     this.factory = this.tonClient.open(Factory.createFromAddress(factoryAddress));
     this.cachedPools = [];
@@ -198,8 +204,7 @@ export class TorchSDK {
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
     if (parsedParams.slippageTolerance) {
-      const simulator = PoolSimulator.create(pool);
-      const simulateResult = simulator.deposit({
+      const simulateResult = await this.simulator.deposit(pool.address, {
         depositAmounts: poolAllocations,
         rates: signedRates?.payload.rates,
       });
@@ -207,7 +212,6 @@ export class TorchSDK {
         new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
       );
       if (parsedParams.nextDeposit) {
-        const nextSimulator = PoolSimulator.create(nextPool!);
         const nextAllocations = [
           {
             value: simulateResult.lpTokenOut,
@@ -216,7 +220,7 @@ export class TorchSDK {
           metaAllocation!,
         ];
 
-        const nextSimulateResult = nextSimulator.deposit({
+        const nextSimulateResult = await this.simulator.deposit(nextPool!.address, {
           depositAmounts: Allocation.createAllocations(nextAllocations),
           rates: signedRates?.payload.rates,
         });
@@ -273,8 +277,7 @@ export class TorchSDK {
 
     // Calculate minAmountOuts
     if (parsedParams.slippageTolerance) {
-      const simulator = PoolSimulator.create(pool);
-      const simulateResult = simulator.withdraw({
+      const simulateResult = await this.simulator.withdraw(pool.address, {
         lpAmount: parsedParams.burnLpAmount,
         assetOut: parsedParams.withdrawAsset,
         rates: signedRates?.payload.rates,
@@ -298,8 +301,7 @@ export class TorchSDK {
         const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
 
-        const nextSimulator = PoolSimulator.create(nextPool!);
-        const nextSimulateResult = nextSimulator.withdraw({
+        const nextSimulateResult = await this.simulator.withdraw(nextPool!.address, {
           lpAmount: nextLpAmount,
           assetOut: parsedParams.withdrawAsset,
           rates: signedRates?.payload.rates,
@@ -385,17 +387,16 @@ export class TorchSDK {
     // Handle slippage tolerance
     let minAmountOut = parsedParams.minAmountOut;
     if (parsedParams.slippageTolerance) {
-      const simulator = PoolSimulator.create(hops[0]!.pool);
       let simulateResult: SimulatorSwapResult;
       if (parsedParams.mode === 'ExactIn') {
-        simulateResult = simulator.swap({
+        simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
           assetIn: parsedParams.assetIn,
           assetOut: parsedParams.assetOut,
           amount: parsedParams.amountIn,
           rates: signedRates?.payload.rates,
         });
       } else {
-        simulateResult = simulator.swap({
+        simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
           assetIn: parsedParams.assetIn,
           assetOut: parsedParams.assetOut,
           amount: parsedParams.amountOut,
