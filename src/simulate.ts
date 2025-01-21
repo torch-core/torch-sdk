@@ -18,12 +18,12 @@ interface SimulatorConfig {
 }
 
 export class Simulator {
-  private torchAPI: ITorchAPI;
+  private torchApi: ITorchAPI;
   private mode: 'offchain' | 'onchain';
   private tonClient: TonClient4;
 
   constructor(config: SimulatorConfig) {
-    this.torchAPI = config.torchAPI;
+    this.torchApi = config.torchAPI;
     this.mode = config.mode;
     this.tonClient = config.tonClient;
   }
@@ -55,7 +55,7 @@ export class Simulator {
 
   async swap(poolAddress: Address, params: SimulateSwapParams) {
     if (this.mode === 'offchain') {
-      return this.torchAPI.simulateSwap(poolAddress, params);
+      return this.torchApi.simulateSwap(poolAddress, params);
     }
     const poolSimulator = await this.getPoolSimulator(poolAddress);
     return poolSimulator.swap(params);
@@ -63,7 +63,7 @@ export class Simulator {
 
   async deposit(poolAddress: Address, params: SimulateDepositParams) {
     if (this.mode === 'offchain') {
-      return this.torchAPI.simulateDeposit(poolAddress, params);
+      return this.torchApi.simulateDeposit(poolAddress, params);
     }
     const poolSimulator = await this.getPoolSimulator(poolAddress);
     return poolSimulator.deposit(params);
@@ -71,7 +71,7 @@ export class Simulator {
 
   async withdraw(poolAddress: Address, params: SimulateWithdrawParams) {
     if (this.mode === 'offchain') {
-      return this.torchAPI.simulateWithdraw(poolAddress, params);
+      return this.torchApi.simulateWithdraw(poolAddress, params);
     }
     const poolSimulator = await this.getPoolSimulator(poolAddress);
     return poolSimulator.withdraw(params);
