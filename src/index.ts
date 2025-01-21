@@ -7,8 +7,7 @@ import { DepositParams } from './types/deposit';
 import { DepositParamsSchema } from './types/deposit';
 import { PoolResponse } from './api/types/pool';
 import Decimal from 'decimal.js';
-import { Allocation, Asset, SignedRate } from '@torch-finance/core';
-import { normalizeAllocations } from './utils/allocation';
+import { Allocation, Asset, normalize, SignedRate } from '@torch-finance/core';
 import { Withdraw, WithdrawParams } from './types/withdraw';
 import { ExactInParamsSchema, SwapParamsSchema } from './types/swap';
 import { SwapParams } from './types/swap';
@@ -58,31 +57,25 @@ export class TorchSDK {
    * @param pools Optional array of `PoolInfo` objects to override, if not provided, data will be fetched from the API.
    * @returns Resolves when the synchronization is complete.
    */
-  async sync(pools?: PoolResponse[]): Promise<void> {
-    this.cachedPools = pools ?? (await this.api.getPools());
-  }
-
-  private async mustSyncPools(poolAddresses: Address[]): Promise<void> {
-    const poolExists = (poolAddresses: Address[]) =>
-      poolAddresses.every((address) => this.cachedPools.some((pool) => pool.address.equals(address)));
-
-    if (this.cachedPools.length === 0 || !poolExists(poolAddresses)) {
-      await this.sync();
-    }
-    if (poolAddresses.length > 0 && !poolExists(poolAddresses)) {
-      throw new Error('Pool not found');
-    }
+  async sync(): Promise<void> {
+    this.cachedPools = await this.api.getPools();
   }
 
   // Get pool data by addresses
-  private getPools = (addresses: Address[]): PoolResponse[] => {
-    const poolInfos = addresses.map((address) => {
-      const pool = this.cachedPools.find((p) => p.address.equals(address));
-      if (!pool) throw new Error(`Pool not found: ${address.toString()}`);
-      return pool;
-    });
+  private async getPools(addresses: Address[]): Promise<PoolResponse[]> {
+    const poolInfos = await Promise.all(
+      addresses.map(async (address) => {
+        let pool = this.cachedPools.find((p) => p.address.equals(address));
+        if (!pool) {
+          await this.sync();
+          pool = this.cachedPools.find((p) => p.address.equals(address));
+        }
+        if (!pool) throw new Error(`Pool not found: ${address.toString()}`);
+        return pool;
+      }),
+    );
     return poolInfos;
-  };
+  }
 
   private getSignedRates = async (pools: PoolResponse[]): Promise<SignedRate | null> => {
     const poolWithRates = pools.filter((pool) => !!pool && pool.useRates).map((pool) => pool!.address);
@@ -92,12 +85,6 @@ export class TorchSDK {
     const signedRated = await this.api.getSignedRates(poolWithRates);
     return signedRated;
   };
-
-  private async syncRequiredPools(poolAddresses: (Address | undefined)[]): Promise<PoolResponse[]> {
-    const requiredAddresses = poolAddresses.filter((pool): pool is Address => pool !== undefined);
-    await this.mustSyncPools(requiredAddresses);
-    return this.getPools(requiredAddresses);
-  }
 
   private _resolveHopsByRoutes(routes: PoolResponse[], assetIn: Asset, assetOut: Asset): Hop[] {
     function calHopAction(
@@ -187,12 +174,14 @@ export class TorchSDK {
   getDepositPayload = async (sender: Address, params: DepositParams): Promise<SenderArguments[]> => {
     const parsedParams = DepositParamsSchema.parse(params);
 
-    const pools = await this.syncRequiredPools([parsedParams.pool, parsedParams.nextDeposit?.pool]);
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
+    );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
     const signedRates = await this.getSignedRates(pools);
 
     // Normalize allocations and meta allocation
-    const poolAllocations = normalizeAllocations(parsedParams.depositAmounts, pool.assets);
+    const poolAllocations: Allocation[] = normalize(parsedParams.depositAmounts, pool.assets);
     const metaAsset = nextPool?.assets.find((asset) => asset.jettonMaster?.equals(pool.address));
     const metaAllocation = metaAsset
       ? parsedParams.nextDeposit?.depositAmounts?.at(0) || new Allocation({ asset: metaAsset, value: BigInt(0) })
@@ -264,10 +253,12 @@ export class TorchSDK {
     return senderArgs;
   };
 
-  async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments[]> {
+  async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
     const parsedParams = new Withdraw(params);
 
-    const pools = await this.syncRequiredPools([parsedParams.pool, parsedParams.nextWithdraw?.pool]);
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
+    );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
     const signedRates = await this.getSignedRates(pools);
 
@@ -367,7 +358,7 @@ export class TorchSDK {
           }
         : null,
     });
-    return [senderArgs];
+    return senderArgs;
   }
 
   async getSwapPayload(sender: Address, params: SwapParams): Promise<SenderArguments> {
@@ -379,8 +370,7 @@ export class TorchSDK {
      */
     let hops: Hop[] = [];
     if (parsedParams.routes && parsedParams.routes.length > 0) {
-      await this.mustSyncPools(parsedParams.routes);
-      const pools = this.getPools(parsedParams.routes);
+      const pools = await this.getPools(parsedParams.routes);
       hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
     } else {
       hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
