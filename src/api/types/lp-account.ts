@@ -1,8 +1,8 @@
-import { Address } from '@ton/core';
+import { AddressSchema } from '@torch-finance/core';
 import { z } from 'zod';
 
 export const LpAccountResponseSchema = z.object({
-  address: z.union([z.string().transform(Address.parse), z.instanceof(Address)]),
+  address: AddressSchema,
   createdAt: z.number(),
 });
 
