@@ -8,8 +8,8 @@ import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/as
 import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
-import { SwapParams } from '../types/swap';
-import { DepositParams } from '../types/deposit';
+import { SwapParams, SwapParamsSchema } from '../types/swap';
+import { DepositParams, DepositParamsSchema } from '../types/deposit';
 import { WithdrawParams } from '../types/withdraw';
 
 export type TorchAPIOptions = {
@@ -120,6 +120,17 @@ export class TorchAPI {
   }
 
   async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    const parsedParams = SwapParamsSchema.parse(params);
+    const requestPayload =
+      parsedParams.mode === 'ExactIn'
+        ? {
+            mode: 'ExactIn',
+            amountIn: parsedParams.amountIn.toString(),
+          }
+        : {
+            mode: 'ExactOut',
+            amountOut: parsedParams.amountOut.toString(),
+          };
     const { data } = await this.indexer.post<
       {
         mode: 'ExactIn' | 'ExactOut';
@@ -129,7 +140,9 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/swap', {
-      params,
+      assetIn: parsedParams.assetIn,
+      assetOut: parsedParams.assetOut,
+      ...requestPayload,
     });
     return data.map((result) => {
       return params.mode === 'ExactIn'
@@ -141,7 +154,7 @@ export class TorchAPI {
           }
         : {
             mode: 'ExactOut',
-            amountIn: BigInt(result.amountOut!),
+            amountIn: BigInt(result.amountIn!),
             virtualPriceBefore: BigInt(result.virtualPriceBefore),
             virtualPriceAfter: BigInt(result.virtualPriceAfter),
           };
@@ -149,6 +162,7 @@ export class TorchAPI {
   }
 
   async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
+    const parsedParams = DepositParamsSchema.parse(params);
     const { data } = await this.indexer.post<
       {
         lpTokenOut: string;
@@ -157,7 +171,16 @@ export class TorchAPI {
         lpTotalSupply: string;
       }[]
     >('/simulate/deposit', {
-      params,
+      pool: parsedParams.pool.toString(),
+      depositAmounts: parsedParams.depositAmounts,
+      nextDeposit: parsedParams.nextDeposit
+        ? {
+            pool: parsedParams.nextDeposit.pool.toString(),
+            depositAmounts: parsedParams.nextDeposit.depositAmounts
+              ? parsedParams.nextDeposit.depositAmounts[0]
+              : undefined,
+          }
+        : undefined,
     });
     return data.map((result) => ({
       lpTokenOut: BigInt(result.lpTokenOut),
@@ -168,6 +191,12 @@ export class TorchAPI {
   }
 
   async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    let withdrawAsset: Asset | undefined;
+    if (params.nextWithdraw && params.mode === 'Single') {
+      withdrawAsset = Asset.jetton(params.nextWithdraw.pool);
+    } else if (params.mode === 'Single') {
+      withdrawAsset = params.withdrawAsset;
+    }
     const { data } = await this.indexer.post<
       {
         amountOuts: string[];
@@ -175,7 +204,17 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/withdraw', {
-      params,
+      pool: params.pool.toString(),
+      removeLpAmount: params.burnLpAmount.toString(),
+      mode: params.mode,
+      withdrawAsset: withdrawAsset,
+      nextWithdraw: params.nextWithdraw
+        ? {
+            mode: params.nextWithdraw.mode,
+            pool: params.nextWithdraw.pool.toString(),
+            withdrawAsset: params.nextWithdraw.withdrawAsset,
+          }
+        : undefined,
     });
     return data.map((result) => ({
       amountOuts: result.amountOuts.map((amountOut) => BigInt(amountOut)),
