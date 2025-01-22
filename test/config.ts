@@ -1,6 +1,10 @@
 import { Address } from '@ton/core';
 import { Asset } from '@torch-finance/core';
 
+export abstract class FactoryConfig {
+  static readonly factoryAddress = Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
+}
+
 export abstract class PoolConfig {
   static readonly triTONPoolAddress = Address.parse('EQCEao02tugbZjudFRMfyu2s_nVZli7F_rgxC1OjdvXpsBsw');
   static readonly quaTONPoolAddress = Address.parse('EQA4rUktNrzOmgZ4OzsOX5Q-C1KelFPCtH8ln2YaHgyAO4kc');

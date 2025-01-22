@@ -1,10 +1,9 @@
-import { SimulateWithdrawResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
+import { SimulateWithdrawResult, SimulateSwapResult, SimulateDepositResult } from '@torch-finance/dex-contract-wrapper';
 import { TonClient4 } from '@ton/ton';
 import { TorchAPI } from './api';
 import { SwapParams } from './types/swap';
 import { WithdrawParams } from './types/withdraw';
 import { DepositParams } from './types/deposit';
-import { SimulatorDepositResult } from '@torch-finance/simulator';
 import { PoolRates } from './types/rates';
 interface SimulatorConfig {
   torchAPI: TorchAPI;
@@ -21,7 +20,7 @@ export abstract class BaseSimulatorAPI {
   }
 
   abstract swap(params: SwapParams, rates?: PoolRates): Promise<SimulateSwapResult[]>;
-  abstract deposit(params: DepositParams, rates?: PoolRates): Promise<SimulatorDepositResult[]>;
+  abstract deposit(params: DepositParams, rates?: PoolRates): Promise<SimulateDepositResult[]>;
   abstract withdraw(params: WithdrawParams, rates?: PoolRates): Promise<SimulateWithdrawResult[]>;
 
   getConfig(): SimulatorConfig {
@@ -37,7 +36,7 @@ export class OnchainSimulatorAPI extends BaseSimulatorAPI {
     throw new Error('Not implemented');
   }
 
-  async deposit(): Promise<SimulatorDepositResult[]> {
+  async deposit(): Promise<SimulateDepositResult[]> {
     throw new Error('Not implemented');
   }
 
@@ -51,7 +50,7 @@ export class OffchainSimulatorAPI extends BaseSimulatorAPI {
     return this.torchApi.simulateSwap(params);
   }
 
-  async deposit(params: DepositParams): Promise<SimulatorDepositResult[]> {
+  async deposit(params: DepositParams): Promise<SimulateDepositResult[]> {
     return this.torchApi.simulateDeposit(params);
   }
 
@@ -84,7 +83,7 @@ export class Simulator {
     return this.simulator.swap(params, rates);
   }
 
-  async deposit(params: DepositParams, rates?: PoolRates): Promise<SimulatorDepositResult[]> {
+  async deposit(params: DepositParams, rates?: PoolRates): Promise<SimulateDepositResult[]> {
     return this.simulator.deposit(params, rates);
   }
 

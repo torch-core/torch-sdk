@@ -9,7 +9,7 @@ import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
 import { SwapParams } from '../types/swap';
-import { DepositParams } from '../types/deposit';
+import { DepositParams, DepositParamsSchema } from '../types/deposit';
 import { WithdrawParams } from '../types/withdraw';
 
 export type TorchAPIOptions = {
@@ -149,6 +149,7 @@ export class TorchAPI {
   }
 
   async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
+    const parsedParams = DepositParamsSchema.parse(params);
     const { data } = await this.indexer.post<
       {
         lpTokenOut: string;
@@ -157,7 +158,14 @@ export class TorchAPI {
         lpTotalSupply: string;
       }[]
     >('/simulate/deposit', {
-      params,
+      pool: parsedParams.pool.toString(),
+      depositAmounts: parsedParams.depositAmounts,
+      nextDeposit: {
+        pool: parsedParams.nextDeposit?.pool.toString(),
+        depositAmounts: parsedParams.nextDeposit?.depositAmounts
+          ? parsedParams.nextDeposit.depositAmounts[0]
+          : undefined,
+      },
     });
     return data.map((result) => ({
       lpTokenOut: BigInt(result.lpTokenOut),
