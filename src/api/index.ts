@@ -198,7 +198,7 @@ export class TorchAPI {
     >('/simulate/withdraw', {
       pool: params.pool.toString(),
       removeLpAmount: params.burnLpAmount.toString(),
-      mode: 'Single',
+      mode: params.mode,
       withdrawAsset: params.mode === 'Single' ? params.withdrawAsset : undefined,
     });
     return data.map((result) => ({
