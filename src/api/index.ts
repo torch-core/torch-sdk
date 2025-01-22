@@ -173,12 +173,14 @@ export class TorchAPI {
     >('/simulate/deposit', {
       pool: parsedParams.pool.toString(),
       depositAmounts: parsedParams.depositAmounts,
-      nextDeposit: {
-        pool: parsedParams.nextDeposit?.pool.toString(),
-        depositAmounts: parsedParams.nextDeposit?.depositAmounts
-          ? parsedParams.nextDeposit.depositAmounts[0]
-          : undefined,
-      },
+      nextDeposit: parsedParams.nextDeposit
+        ? {
+            pool: parsedParams.nextDeposit.pool.toString(),
+            depositAmounts: parsedParams.nextDeposit.depositAmounts
+              ? parsedParams.nextDeposit.depositAmounts[0]
+              : undefined,
+          }
+        : undefined,
     });
     return data.map((result) => ({
       lpTokenOut: BigInt(result.lpTokenOut),
