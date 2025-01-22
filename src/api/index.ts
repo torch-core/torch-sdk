@@ -8,7 +8,7 @@ import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/as
 import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
-import { SwapParams } from '../types/swap';
+import { SwapParams, SwapParamsSchema } from '../types/swap';
 import { DepositParams } from '../types/deposit';
 import { WithdrawParams } from '../types/withdraw';
 
@@ -103,7 +103,7 @@ export class TorchAPI {
   async getSignedRates(poolAddresses: Address[]): Promise<SignedRate> {
     const { data } = await this.oracle.get<SignedRateResponse>('/signed-rates', {
       params: {
-        poolAddresses: poolAddresses.map((address) => address.toString()),
+        poolAddresses: poolAddresses.map((address) => address.toString()).join(','),
       },
     });
     return SignedRate.fromJSON(data);
@@ -120,6 +120,7 @@ export class TorchAPI {
   }
 
   async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    const parsedParams = SwapParamsSchema.parse(params);
     const { data } = await this.indexer.post<
       {
         mode: 'ExactIn' | 'ExactOut';
@@ -129,7 +130,7 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/swap', {
-      params,
+      params: parsedParams.toJSON(),
     });
     return data.map((result) => {
       return params.mode === 'ExactIn'
