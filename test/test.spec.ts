@@ -4,6 +4,7 @@ import { toNano } from '@ton/core';
 import { DepositParams } from '../src/types/deposit';
 import { TorchSDK } from '../src/index';
 import { SwapParams } from '../src/types/swap';
+import { WithdrawParams } from '../src/types/withdraw';
 
 describe('Simulate Testcases', () => {
   let torchSDK: TorchSDK;
@@ -53,5 +54,17 @@ describe('Simulate Testcases', () => {
     };
     const simulateSwapResult = await torchSDK.simulateSwap(swapParams);
     console.log(simulateSwapResult);
+  });
+
+  it('should simulate withdraw single', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Single',
+      pool: PoolConfig.triTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+      withdrawAsset: PoolAssets.tonAsset,
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
   });
 });

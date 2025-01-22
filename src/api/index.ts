@@ -196,7 +196,10 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/withdraw', {
-      params,
+      pool: params.pool.toString(),
+      removeLpAmount: params.burnLpAmount.toString(),
+      mode: 'Single',
+      withdrawAsset: params.mode === 'Single' ? params.withdrawAsset : undefined,
     });
     return data.map((result) => ({
       amountOuts: result.amountOuts.map((amountOut) => BigInt(amountOut)),

@@ -292,10 +292,10 @@ export class TorchSDK {
       if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
       const simulateResult = simulateResults[0]!;
 
-      if (parsedParams.mode === 'balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
+      if (parsedParams.mode === 'Balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
         throw new Error(`In balanced mode, amount out length must match pool assets length (${pool.assets.length})`);
       }
-      if (parsedParams.mode === 'single' && simulateResult.amountOuts.length !== 1) {
+      if (parsedParams.mode === 'Single' && simulateResult.amountOuts.length !== 1) {
         throw new Error('In single mode, amount out length must be 1');
       }
       minAmountOuts = Allocation.createAllocations(
@@ -312,12 +312,12 @@ export class TorchSDK {
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
 
         const nextSimulateResult = simulateResults[1]!;
-        if (parsedParams.mode === 'balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
+        if (parsedParams.mode === 'Balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
           throw new Error(
             `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
           );
         }
-        if (parsedParams.mode === 'single' && nextSimulateResult.amountOuts.length !== 1) {
+        if (parsedParams.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
           throw new Error('In single mode, amount out length must be 1');
         }
         nextMinAmountOuts = nextPool
@@ -338,7 +338,7 @@ export class TorchSDK {
       signedRate: signedRate,
       extraPayload: undefined, // TODO: Add extra payload
       config:
-        parsedParams.mode === 'single'
+        parsedParams.mode === 'Single'
           ? {
               mode: 'single',
               assetOut: parsedParams.withdrawAsset!,
@@ -353,7 +353,7 @@ export class TorchSDK {
             type: 'withdraw',
             nextPoolAddress: nextPool!.address,
             config:
-              parsedParams.nextWithdraw.mode === 'single'
+              parsedParams.nextWithdraw.mode === 'Single'
                 ? {
                     mode: 'single',
                     minAmountOut: nextMinAmountOuts?.at(0)?.value,
