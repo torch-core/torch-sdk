@@ -189,6 +189,12 @@ export class TorchAPI {
   }
 
   async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    let withdrawAsset: Asset | undefined;
+    if (params.nextWithdraw && params.mode === 'Single') {
+      withdrawAsset = Asset.jetton(params.nextWithdraw.pool);
+    } else if (params.mode === 'Single') {
+      withdrawAsset = params.withdrawAsset;
+    }
     const { data } = await this.indexer.post<
       {
         amountOuts: string[];
@@ -199,7 +205,14 @@ export class TorchAPI {
       pool: params.pool.toString(),
       removeLpAmount: params.burnLpAmount.toString(),
       mode: params.mode,
-      withdrawAsset: params.mode === 'Single' ? params.withdrawAsset : undefined,
+      withdrawAsset: withdrawAsset,
+      nextWithdraw: params.nextWithdraw
+        ? {
+            mode: params.nextWithdraw.mode,
+            pool: params.nextWithdraw.pool.toString(),
+            withdrawAsset: params.nextWithdraw.withdrawAsset,
+          }
+        : undefined,
     });
     return data.map((result) => ({
       amountOuts: result.amountOuts.map((amountOut) => BigInt(amountOut)),

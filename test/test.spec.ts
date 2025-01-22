@@ -67,4 +67,77 @@ describe('Simulate Testcases', () => {
     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
     console.log(simulateWithdrawResult);
   });
+
+  it('should simulate withdraw balanced', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Balanced',
+      pool: PoolConfig.triTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
+  });
+
+  it('should simulate withdraw balanced and withdraw balanced', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Balanced',
+      pool: PoolConfig.quaTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+      nextWithdraw: {
+        mode: 'Balanced',
+        pool: PoolConfig.triTONPoolAddress,
+      },
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
+  });
+
+  it('should simulate withdraw single and withdraw single', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Single',
+      pool: PoolConfig.quaTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+      nextWithdraw: {
+        mode: 'Single',
+        pool: PoolConfig.triTONPoolAddress,
+        withdrawAsset: PoolAssets.tonAsset,
+      },
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
+  });
+
+  it('should simulate withdraw single and withdraw balanced', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Single',
+      pool: PoolConfig.quaTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+      nextWithdraw: {
+        mode: 'Balanced',
+        pool: PoolConfig.triTONPoolAddress,
+      },
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
+  });
+
+  it('should simulate withdraw all and withdraw single', async () => {
+    const withdrawParams: WithdrawParams = {
+      mode: 'Balanced',
+      pool: PoolConfig.quaTONPoolAddress,
+      burnLpAmount: 5n * 10n ** 18n,
+      queryId: 1n,
+      nextWithdraw: {
+        mode: 'Single',
+        pool: PoolConfig.triTONPoolAddress,
+        withdrawAsset: PoolAssets.tonAsset,
+      },
+    };
+    const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    console.log(simulateWithdrawResult);
+  });
 });

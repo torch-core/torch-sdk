@@ -1,6 +1,6 @@
 import { Address } from '@ton/core';
 import { Slippage, SlippageSchema } from './slippage';
-import { AddressSchema, Allocation, Asset, AssetSchema, Marshallable } from '@torch-finance/core';
+import { AddressSchema, Allocation, Asset, Marshallable } from '@torch-finance/core';
 import { z } from 'zod';
 
 export type WithdrawMode = 'Single' | 'Balanced';
@@ -18,7 +18,7 @@ interface BaseWithdraw {
 interface NextWithdrawSingleRaw {
   pool: z.input<typeof AddressSchema>;
   mode: 'Single';
-  withdrawAsset: z.input<typeof AssetSchema>; // Must be defined for single mode
+  withdrawAsset: Asset; // Must be defined for single mode
 }
 interface NextWithdrawSingle {
   pool: Address;
@@ -128,7 +128,7 @@ export class Withdraw implements Marshallable {
         this.nextWithdraw = {
           mode: 'Single',
           pool: AddressSchema.parse(params.nextWithdraw.pool),
-          withdrawAsset: new Asset(params.nextWithdraw.withdrawAsset),
+          withdrawAsset: params.nextWithdraw.withdrawAsset,
         };
       } else {
         this.nextWithdraw = {
