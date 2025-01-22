@@ -9,11 +9,11 @@ import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
 import {
   SimulateDepositParams,
+  SimulateDepositResult,
   SimulateSwapParams,
+  SimulateSwapResult,
   SimulateWithdrawParams,
   SimulateWithdrawResult,
-  SimulatorDepositResult,
-  SimulatorSwapResult,
 } from '@torch-finance/dex-contract-wrapper';
 
 export type TorchAPIOptions = {
@@ -123,9 +123,10 @@ export class TorchAPI {
     return response.data.map((hop) => HopSchema.parse(hop));
   }
 
-  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult> {
+  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulateSwapResult> {
     const { data } = await this.indexer.post<{
-      amountOut: string;
+      mode: 'ExactIn' | 'ExactOut';
+      amount: string;
       virtualPriceBefore: string;
       virtualPriceAfter: string;
     }>('/simulate/swap', {
@@ -134,14 +135,26 @@ export class TorchAPI {
         ...params,
       },
     });
-    return {
-      amountOut: BigInt(data.amountOut),
-      virtualPriceBefore: BigInt(data.virtualPriceBefore),
-      virtualPriceAfter: BigInt(data.virtualPriceAfter),
-    };
+    if (data.mode === 'ExactIn') {
+      return {
+        mode: 'ExactIn',
+        amountOut: BigInt(data.amount),
+        virtualPriceBefore: BigInt(data.virtualPriceBefore),
+        virtualPriceAfter: BigInt(data.virtualPriceAfter),
+      };
+    }
+    if (data.mode === 'ExactOut') {
+      return {
+        mode: 'ExactOut',
+        amountIn: BigInt(data.amount),
+        virtualPriceBefore: BigInt(data.virtualPriceBefore),
+        virtualPriceAfter: BigInt(data.virtualPriceAfter),
+      };
+    }
+    throw new Error('Invalid mode');
   }
 
-  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult> {
+  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulateDepositResult> {
     const { data } = await this.indexer.post<{
       lpTokenOut: string;
       virtualPriceBefore: string;

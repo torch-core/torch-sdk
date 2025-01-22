@@ -1,11 +1,11 @@
 import {
   Factory,
   SimulateDepositParams,
+  SimulateDepositResult,
   SimulateSwapParams,
+  SimulateSwapResult,
   SimulateWithdrawParams,
   SimulateWithdrawResult,
-  SimulatorDepositResult,
-  SimulatorSwapResult,
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
@@ -397,25 +397,38 @@ export class TorchSDK {
     // Handle slippage tolerance
     let minAmountOut = parsedParams.minAmountOut;
     if (parsedParams.slippageTolerance) {
-      let simulateResult: SimulatorSwapResult;
+      let simulateResult: SimulateSwapResult;
       if (parsedParams.mode === 'ExactIn') {
         simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
+          mode: 'ExactIn',
           assetIn: parsedParams.assetIn,
           assetOut: parsedParams.assetOut,
-          amount: parsedParams.amountIn,
+          amountIn: parsedParams.amountIn,
           rates: signedRates?.payload.rates,
         });
+        if (simulateResult.mode !== 'ExactIn') {
+          throw new Error('Invalid mode');
+        }
+        minAmountOut = BigInt(
+          new Decimal(1 - parsedParams.slippageTolerance.toNumber())
+            .mul(simulateResult.amountOut.toString())
+            .toFixed(0),
+        );
       } else {
         simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
+          mode: 'ExactOut',
           assetIn: parsedParams.assetIn,
           assetOut: parsedParams.assetOut,
-          amount: parsedParams.amountOut,
+          amountOut: parsedParams.amountOut,
           rates: signedRates?.payload.rates,
         });
+        if (simulateResult.mode != 'ExactOut') {
+          throw new Error('Invalid mode');
+        }
+        minAmountOut = BigInt(
+          new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.amountIn.toString()).toFixed(0),
+        );
       }
-      minAmountOut = BigInt(
-        new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.amountOut.toString()).toFixed(0),
-      );
     }
 
     const parsedExactInParams = ExactInParamsSchema.parse(parsedParams);
@@ -475,11 +488,11 @@ export class TorchSDK {
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 
-  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulatorSwapResult> {
+  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulateSwapResult> {
     return await this.simulator.swap(poolAddress, params);
   }
 
-  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulatorDepositResult> {
+  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulateDepositResult> {
     return await this.simulator.deposit(poolAddress, params);
   }
 
