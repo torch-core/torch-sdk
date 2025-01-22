@@ -44,14 +44,14 @@ describe('Simulate Testcases', () => {
     console.log(simulateDepositResultSDK);
   });
 
-  // it('should simulate swap', async () => {
-  //   const swapParams: SwapParams = {
-  //     mode: 'ExactIn',
-  //     assetIn: PoolAssets.tonAsset,
-  //     assetOut: PoolAssets.tsTONAsset,
-  //     amountIn: toNano(0.5),
-  //   };
-  //   const simulateSwapResult = await torchSDK.simulateSwap(swapParams);
-  //   console.log(simulateSwapResult);
-  // });
+  it('should simulate swap', async () => {
+    const swapParams: SwapParams = {
+      mode: 'ExactIn',
+      assetIn: PoolAssets.tonAsset,
+      assetOut: PoolAssets.hTONAsset,
+      amountIn: toNano(0.5),
+    };
+    const simulateSwapResult = await torchSDK.simulateSwap(swapParams);
+    console.log(simulateSwapResult);
+  });
 });
