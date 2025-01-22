@@ -1,79 +1,94 @@
-import {
-  Pool,
-  PoolData,
-  SimulateDepositParams,
-  SimulateSwapParams,
-  SimulateWithdrawParams,
-} from '@torch-finance/dex-contract-wrapper';
-import { Address } from '@ton/core';
-import { PoolSimulator, SimulatorState } from '@torch-finance/simulator';
+import { SimulateWithdrawResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
 import { TonClient4 } from '@ton/ton';
-import { Allocation } from '@torch-finance/core';
 import { TorchAPI } from './api';
-
+import { SwapParams } from './types/swap';
+import { WithdrawParams } from './types/withdraw';
+import { DepositParams } from './types/deposit';
+import { SimulatorDepositResult } from '@torch-finance/simulator';
+import { PoolRates } from './types/rates';
 interface SimulatorConfig {
   torchAPI: TorchAPI;
   tonClient: TonClient4;
-  mode: 'offchain' | 'onchain';
 }
 
-export class Simulator {
-  private torchApi: TorchAPI;
-  private mode: 'offchain' | 'onchain';
-  private tonClient: TonClient4;
+export abstract class BaseSimulatorAPI {
+  protected torchApi: TorchAPI;
+  protected tonClient: TonClient4;
 
   constructor(config: SimulatorConfig) {
     this.torchApi = config.torchAPI;
-    this.mode = config.mode;
     this.tonClient = config.tonClient;
   }
 
-  setMode(mode: 'offchain' | 'onchain') {
-    this.mode = mode;
-  }
+  abstract swap(params: SwapParams, rates?: PoolRates): Promise<SimulateSwapResult[]>;
+  abstract deposit(params: DepositParams, rates?: PoolRates): Promise<SimulatorDepositResult[]>;
+  abstract withdraw(params: WithdrawParams, rates?: PoolRates): Promise<SimulateWithdrawResult[]>;
 
-  private transformPoolData(poolData: PoolData): SimulatorState {
+  getConfig(): SimulatorConfig {
     return {
-      initA: poolData.basicData.initA,
-      futureA: poolData.basicData.futureA,
-      initATime: poolData.basicData.initATime,
-      futureATime: poolData.basicData.futureATime,
-      feeNumerator: Number(poolData.basicData.feeNumerator),
-      adminFeeNumerator: Number(poolData.basicData.adminFeeNumerator),
-      adminFees: poolData.reserveData.reserves.map((reserve) => new Allocation(reserve)),
-      reserves: poolData.reserveData.reserves.map((reserve) => new Allocation(reserve)),
-      lpTotalSupply: poolData.basicData.lpTotalSupply,
-      decimals: poolData.basicData.decimals.map((decimal) => new Allocation(decimal)),
+      torchAPI: this.torchApi,
+      tonClient: this.tonClient,
     };
   }
+}
 
-  private async getPoolSimulator(poolAddress: Address) {
-    const pool = await this.tonClient.open(Pool.createFromAddress(poolAddress));
-    const poolData = await pool.getPoolData();
-    return PoolSimulator.create(this.transformPoolData(poolData));
+export class OffchainSimulatorAPI extends BaseSimulatorAPI {
+  async swap(): Promise<SimulateSwapResult[]> {
+    throw new Error('Not implemented');
   }
 
-  async swap(poolAddress: Address, params: SimulateSwapParams) {
-    if (this.mode === 'offchain') {
-      return this.torchApi.simulateSwap(poolAddress, params);
-    }
-    const poolSimulator = await this.getPoolSimulator(poolAddress);
-    return poolSimulator.swap(params);
+  async deposit(): Promise<SimulatorDepositResult[]> {
+    throw new Error('Not implemented');
   }
 
-  async deposit(poolAddress: Address, params: SimulateDepositParams) {
-    if (this.mode === 'offchain') {
-      return this.torchApi.simulateDeposit(poolAddress, params);
-    }
-    const poolSimulator = await this.getPoolSimulator(poolAddress);
-    return poolSimulator.deposit(params);
+  async withdraw(): Promise<SimulateWithdrawResult[]> {
+    throw new Error('Not implemented');
+  }
+}
+
+export class OnchainSimulatorAPI extends BaseSimulatorAPI {
+  async swap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    return this.torchApi.simulateSwap(params);
   }
 
-  async withdraw(poolAddress: Address, params: SimulateWithdrawParams) {
-    if (this.mode === 'offchain') {
-      return this.torchApi.simulateWithdraw(poolAddress, params);
+  async deposit(params: DepositParams): Promise<SimulatorDepositResult[]> {
+    return this.torchApi.simulateDeposit(params);
+  }
+
+  async withdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    return this.torchApi.simulateWithdraw(params);
+  }
+}
+
+export class Simulator {
+  private simulator: BaseSimulatorAPI;
+
+  constructor(config: SimulatorConfig & { mode: 'offchain' | 'onchain' }) {
+    if (config.mode === 'offchain') {
+      this.simulator = new OffchainSimulatorAPI(config);
+    } else {
+      throw new Error('Onchain simulator is not implemented');
     }
-    const poolSimulator = await this.getPoolSimulator(poolAddress);
-    return poolSimulator.withdraw(params);
+  }
+
+  setMode(mode: 'offchain' | 'onchain') {
+    const config = this.simulator.getConfig();
+    if (mode === 'offchain') {
+      this.simulator = new OffchainSimulatorAPI(config);
+    } else {
+      throw new Error('Onchain simulator is not implemented');
+    }
+  }
+
+  async swap(params: SwapParams, rates?: PoolRates): Promise<SimulateSwapResult[]> {
+    return this.simulator.swap(params, rates);
+  }
+
+  async deposit(params: DepositParams, rates?: PoolRates): Promise<SimulatorDepositResult[]> {
+    return this.simulator.deposit(params, rates);
+  }
+
+  async withdraw(params: WithdrawParams, rates?: PoolRates): Promise<SimulateWithdrawResult[]> {
+    return this.simulator.withdraw(params, rates);
   }
 }
