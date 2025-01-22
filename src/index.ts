@@ -1,10 +1,7 @@
 import {
   Factory,
-  SimulateDepositParams,
   SimulateDepositResult,
-  SimulateSwapParams,
   SimulateSwapResult,
-  SimulateWithdrawParams,
   SimulateWithdrawResult,
   SwapNext,
   WithdrawNext,
@@ -23,6 +20,7 @@ import { SwapParams } from './types/swap';
 import { Hop, HopAction, HopSchema } from './types/hop';
 import { buildSwapNext } from './utils/builder';
 import { Simulator } from './simulate';
+import { PoolRates } from './types/rates';
 
 export type TorchSDKOptions = {
   indexerEndpoint?: string;
@@ -93,13 +91,24 @@ export class TorchSDK {
     return poolInfos;
   }
 
-  private getSignedRates = async (pools: PoolResponse[]): Promise<SignedRate | null> => {
+  private getSignedRates = async (
+    pools: PoolResponse[],
+  ): Promise<{ signedRate: SignedRate | null; poolsRates: PoolRates }> => {
+    const poolRates: PoolRates = Array.from({ length: pools.length }, () => null);
+
     const poolWithRates = pools.filter((pool) => !!pool && pool.useRates).map((pool) => pool!.address);
     if (poolWithRates.length === 0) {
-      return null;
+      return { signedRate: null, poolsRates: poolRates };
     }
-    const signedRated = await this.api.getSignedRates(poolWithRates);
-    return signedRated;
+
+    const signedRates = await this.api.getSignedRates(poolWithRates);
+    for (const [i, pool] of pools.entries()) {
+      if (pool.useRates) {
+        if (!signedRates) throw new Error('Signed rates not found but pool useRates is true');
+        poolRates[i] = signedRates.payload.rates;
+      }
+    }
+    return { signedRate: signedRates, poolsRates: poolRates };
   };
 
   private _resolveHopsByRoutes(routes: PoolResponse[], assetIn: Asset, assetOut: Asset): Hop[] {
@@ -194,7 +203,7 @@ export class TorchSDK {
       [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
     );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
-    const signedRates = await this.getSignedRates(pools);
+    const { signedRate, poolsRates } = await this.getSignedRates(pools);
 
     // Normalize allocations and meta allocation
     const poolAllocations: Allocation[] = normalize(parsedParams.depositAmounts, pool.assets);
@@ -214,26 +223,18 @@ export class TorchSDK {
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
     if (parsedParams.slippageTolerance) {
-      const simulateResult = await this.simulator.deposit(pool.address, {
-        depositAmounts: poolAllocations,
-        rates: signedRates?.payload.rates,
-      });
+      const simulateResults = await this.simulator.deposit(params, poolsRates);
+
+      if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
+      const simulateResult = simulateResults[0]!;
+
       minAmountOut = BigInt(
         new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
       );
-      if (parsedParams.nextDeposit) {
-        const nextAllocations = [
-          {
-            value: simulateResult.lpTokenOut,
-            asset: Asset.jetton(pool.address),
-          },
-          metaAllocation!,
-        ];
 
-        const nextSimulateResult = await this.simulator.deposit(nextPool!.address, {
-          depositAmounts: Allocation.createAllocations(nextAllocations),
-          rates: signedRates?.payload.rates,
-        });
+      if (parsedParams.nextDeposit) {
+        const nextSimulateResult = simulateResults[1];
+        if (!nextSimulateResult) throw new Error('Simulate deposit result length must be 2');
 
         nextMinAmountOut = BigInt(
           new Decimal(1 - parsedParams.slippageTolerance.toNumber())
@@ -248,7 +249,7 @@ export class TorchSDK {
       poolAddress: pool.address,
       poolAllocations,
       config: {
-        signedRate: signedRates,
+        signedRate: signedRate,
         minLpAmount: minAmountOut,
         recipient: parsedParams.recipient,
         fulfillPayload: parsedParams.fulfillPayload,
@@ -274,7 +275,7 @@ export class TorchSDK {
       [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
     );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
-    const signedRates = await this.getSignedRates(pools);
+    const { signedRate, poolsRates } = await this.getSignedRates(pools);
 
     // Get minAmountOuts if slippageTolerance is provided
     let minAmountOuts: Allocation[] | null = null;
@@ -287,11 +288,10 @@ export class TorchSDK {
 
     // Calculate minAmountOuts
     if (parsedParams.slippageTolerance) {
-      const simulateResult = await this.simulator.withdraw(pool.address, {
-        lpAmount: parsedParams.burnLpAmount,
-        assetOut: parsedParams.withdrawAsset,
-        rates: signedRates?.payload.rates,
-      });
+      const simulateResults = await this.simulator.withdraw(params, poolsRates);
+      if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
+      const simulateResult = simulateResults[0]!;
+
       if (parsedParams.mode === 'balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
         throw new Error(`In balanced mode, amount out length must match pool assets length (${pool.assets.length})`);
       }
@@ -311,11 +311,7 @@ export class TorchSDK {
         const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
 
-        const nextSimulateResult = await this.simulator.withdraw(nextPool!.address, {
-          lpAmount: nextLpAmount,
-          assetOut: parsedParams.withdrawAsset,
-          rates: signedRates?.payload.rates,
-        });
+        const nextSimulateResult = simulateResults[1]!;
         if (parsedParams.mode === 'balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
           throw new Error(
             `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
@@ -339,7 +335,7 @@ export class TorchSDK {
       queryId: params.queryId,
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
-      signedRate: signedRates,
+      signedRate: signedRate,
       extraPayload: undefined, // TODO: Add extra payload
       config:
         parsedParams.mode === 'single'
@@ -392,44 +388,41 @@ export class TorchSDK {
     if (!firstHop) throw new Error('No hops found');
 
     // Get signed rates
-    const signedRates = await this.getSignedRates(hops.map((hop) => hop.pool));
+    const { signedRate } = await this.getSignedRates(hops.map((hop) => hop.pool));
 
-    // Handle slippage tolerance
-    let minAmountOut = parsedParams.minAmountOut;
-    if (parsedParams.slippageTolerance) {
-      let simulateResult: SimulateSwapResult;
-      if (parsedParams.mode === 'ExactIn') {
-        simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
-          mode: 'ExactIn',
-          assetIn: parsedParams.assetIn,
-          assetOut: parsedParams.assetOut,
-          amountIn: parsedParams.amountIn,
-          rates: signedRates?.payload.rates,
-        });
-        if (simulateResult.mode !== 'ExactIn') {
-          throw new Error('Invalid mode');
-        }
-        minAmountOut = BigInt(
-          new Decimal(1 - parsedParams.slippageTolerance.toNumber())
-            .mul(simulateResult.amountOut.toString())
-            .toFixed(0),
-        );
-      } else {
-        simulateResult = await this.simulator.swap(hops[0]!.pool.address, {
-          mode: 'ExactOut',
-          assetIn: parsedParams.assetIn,
-          assetOut: parsedParams.assetOut,
-          amountOut: parsedParams.amountOut,
-          rates: signedRates?.payload.rates,
-        });
-        if (simulateResult.mode != 'ExactOut') {
-          throw new Error('Invalid mode');
-        }
-        minAmountOut = BigInt(
-          new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.amountIn.toString()).toFixed(0),
-        );
-      }
-    }
+    // TODO: Handle slippage tolerance
+    const minAmountOut = parsedParams.minAmountOut;
+    // if (parsedParams.slippageTolerance) {
+    //   let amountOut: bigint;
+    //   if (parsedParams.mode === 'ExactIn') {
+    //     const simulateResult = await this.simulator.swap(
+    //       {
+    //         mode: 'ExactIn',
+    //         assetIn: parsedParams.assetIn,
+    //         assetOut: parsedParams.assetOut,
+    //         amountIn: parsedParams.amountIn,
+    //       },
+    //       signedRates?.payload.rates,
+    //     );
+    //     if (simulateResult.mode !== 'ExactIn') throw new Error('Simulate swap result is not ExactIn');
+    //     amountOut = simulateResult.amountOut;
+    //   } else {
+    //     const simulateResult = await this.simulator.swap(
+    //       {
+    //         mode: 'ExactOut',
+    //         assetIn: parsedParams.assetIn,
+    //         assetOut: parsedParams.assetOut,
+    //         amountOut: parsedParams.amountOut,
+    //       },
+    //       signedRates?.payload.rates,
+    //     );
+    //     if (simulateResult.mode !== 'ExactOut') throw new Error('Simulate swap result is not ExactOut');
+    //     amountOut = parsedParams.amountOut;
+    //   }
+    //   minAmountOut = BigInt(
+    //     new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(amountOut.toString()).toFixed(0),
+    //   );
+    // }
 
     const parsedExactInParams = ExactInParamsSchema.parse(parsedParams);
     if (firstHop.action === 'swap') {
@@ -443,7 +436,7 @@ export class TorchSDK {
           deadline: parsedParams.deadline,
           minAmountOut: minAmountOut,
           recipient: parsedParams.recipient,
-          signedRate: signedRates,
+          signedRate: signedRate,
           fulfillPayload: parsedParams.fulfillPayload,
           rejectPayload: parsedParams.rejectPayload,
           extraPayload: undefined, // TODO: Add extra payload
@@ -463,7 +456,7 @@ export class TorchSDK {
         ),
         config: {
           minLpAmount: minAmountOut,
-          signedRate: signedRates,
+          signedRate: signedRate,
           recipient: parsedParams.recipient,
           fulfillPayload: parsedParams.fulfillPayload,
           rejectPayload: parsedParams.rejectPayload,
@@ -488,15 +481,15 @@ export class TorchSDK {
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 
-  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulateSwapResult> {
-    return await this.simulator.swap(poolAddress, params);
+  async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    return await this.simulator.swap(params);
   }
 
-  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulateDepositResult> {
-    return await this.simulator.deposit(poolAddress, params);
+  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
+    return await this.simulator.deposit(params);
   }
 
-  async simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult> {
-    return await this.simulator.withdraw(poolAddress, params);
+  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    return await this.simulator.withdraw(params);
   }
 }

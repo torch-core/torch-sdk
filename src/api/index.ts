@@ -7,14 +7,10 @@ import axios, { AxiosInstance } from 'axios';
 import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/asset';
 import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
-import {
-  SimulateDepositParams,
-  SimulateDepositResult,
-  SimulateSwapParams,
-  SimulateSwapResult,
-  SimulateWithdrawParams,
-  SimulateWithdrawResult,
-} from '@torch-finance/dex-contract-wrapper';
+import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
+import { SwapParams } from '../types/swap';
+import { DepositParams } from '../types/deposit';
+import { WithdrawParams } from '../types/withdraw';
 
 export type TorchAPIOptions = {
   indexerEndpoint: string;
@@ -123,66 +119,68 @@ export class TorchAPI {
     return response.data.map((hop) => HopSchema.parse(hop));
   }
 
-  async simulateSwap(poolAddress: Address, params: SimulateSwapParams): Promise<SimulateSwapResult> {
-    const { data } = await this.indexer.post<{
-      mode: 'ExactIn' | 'ExactOut';
-      amount: string;
-      virtualPriceBefore: string;
-      virtualPriceAfter: string;
-    }>('/simulate/swap', {
-      params: {
-        poolAddress: poolAddress.toString(),
-        ...params,
-      },
-    });
-    if (data.mode === 'ExactIn') {
-      return {
-        mode: 'ExactIn',
-        amountOut: BigInt(data.amount),
-        virtualPriceBefore: BigInt(data.virtualPriceBefore),
-        virtualPriceAfter: BigInt(data.virtualPriceAfter),
-      };
-    }
-    if (data.mode === 'ExactOut') {
-      return {
-        mode: 'ExactOut',
-        amountIn: BigInt(data.amount),
-        virtualPriceBefore: BigInt(data.virtualPriceBefore),
-        virtualPriceAfter: BigInt(data.virtualPriceAfter),
-      };
-    }
-    throw new Error('Invalid mode');
-  }
-
-  async simulateDeposit(poolAddress: Address, params: SimulateDepositParams): Promise<SimulateDepositResult> {
-    const { data } = await this.indexer.post<{
-      lpTokenOut: string;
-      virtualPriceBefore: string;
-      virtualPriceAfter: string;
-      lpTotalSupply: string;
-    }>('/simulate/deposit', {
+  async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    const { data } = await this.indexer.post<
+      {
+        mode: 'ExactIn' | 'ExactOut';
+        amountOut?: string;
+        amountIn?: string;
+        virtualPriceBefore: string;
+        virtualPriceAfter: string;
+      }[]
+    >('/simulate/swap', {
       params,
     });
-    return {
-      lpTokenOut: BigInt(data.lpTokenOut),
-      virtualPriceBefore: BigInt(data.virtualPriceBefore),
-      virtualPriceAfter: BigInt(data.virtualPriceAfter),
-      lpTotalSupply: BigInt(data.lpTotalSupply),
-    };
+    return data.map((result) => {
+      return params.mode === 'ExactIn'
+        ? {
+            mode: 'ExactIn',
+            amountOut: BigInt(result.amountOut!),
+            virtualPriceBefore: BigInt(result.virtualPriceBefore),
+            virtualPriceAfter: BigInt(result.virtualPriceAfter),
+          }
+        : {
+            mode: 'ExactOut',
+            amountIn: BigInt(result.amountOut!),
+            virtualPriceBefore: BigInt(result.virtualPriceBefore),
+            virtualPriceAfter: BigInt(result.virtualPriceAfter),
+          };
+    });
   }
 
-  async simulateWithdraw(poolAddress: Address, params: SimulateWithdrawParams): Promise<SimulateWithdrawResult> {
-    const { data } = await this.indexer.post<{
-      amountOuts: string[];
-      virtualPriceBefore: string;
-      virtualPriceAfter: string;
-    }>('/simulate/withdraw', {
+  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
+    const { data } = await this.indexer.post<
+      {
+        lpTokenOut: string;
+        virtualPriceBefore: string;
+        virtualPriceAfter: string;
+        lpTotalSupply: string;
+      }[]
+    >('/simulate/deposit', {
       params,
     });
-    return {
-      amountOuts: data.amountOuts.map((amountOut) => BigInt(amountOut)),
-      virtualPriceBefore: BigInt(data.virtualPriceBefore),
-      virtualPriceAfter: BigInt(data.virtualPriceAfter),
-    };
+    return data.map((result) => ({
+      lpTokenOut: BigInt(result.lpTokenOut),
+      virtualPriceBefore: BigInt(result.virtualPriceBefore),
+      virtualPriceAfter: BigInt(result.virtualPriceAfter),
+      lpTotalSupply: BigInt(result.lpTotalSupply),
+    }));
+  }
+
+  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    const { data } = await this.indexer.post<
+      {
+        amountOuts: string[];
+        virtualPriceBefore: string;
+        virtualPriceAfter: string;
+      }[]
+    >('/simulate/withdraw', {
+      params,
+    });
+    return data.map((result) => ({
+      amountOuts: result.amountOuts.map((amountOut) => BigInt(amountOut)),
+      virtualPriceBefore: BigInt(result.virtualPriceBefore),
+      virtualPriceAfter: BigInt(result.virtualPriceAfter),
+    }));
   }
 }
