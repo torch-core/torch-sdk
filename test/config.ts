@@ -14,5 +14,7 @@ export abstract class PoolAssets {
   static readonly tonAsset = Asset.ton();
   static readonly tsTONAsset = Asset.jetton('EQA5rOnkPx8xTWvSjKAqEkdLOIM0-IyT_u-5IEQ5R2y9m-36');
   static readonly stTONAsset = Asset.jetton('EQBbKadthJqQfnEsijYFvi25AKGDhS3CTVAf8oGZYwGk8G8W');
+  static readonly triTONAsset = Asset.jetton(PoolConfig.triTONPoolAddress);
   static readonly hTONAsset = Asset.jetton('EQDInlQkBcha9-KPGDR-eWi5VGhYPXO5s04amtzZ07s0Kzuu');
+  static readonly quaTONAsset = Asset.jetton(PoolConfig.quaTONPoolAddress);
 }

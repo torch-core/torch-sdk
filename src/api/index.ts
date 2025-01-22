@@ -8,7 +8,7 @@ import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/as
 import { SignedRateResponse } from './types/signedRate';
 import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
-import { SwapParams } from '../types/swap';
+import { SwapParams, SwapParamsSchema } from '../types/swap';
 import { DepositParams, DepositParamsSchema } from '../types/deposit';
 import { WithdrawParams } from '../types/withdraw';
 
@@ -120,6 +120,17 @@ export class TorchAPI {
   }
 
   async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    const parsedParams = SwapParamsSchema.parse(params);
+    const requestPayload =
+      parsedParams.mode === 'ExactIn'
+        ? {
+            mode: 'ExactIn',
+            amountIn: parsedParams.amountIn.toString(),
+          }
+        : {
+            mode: 'ExactOut',
+            amountOut: parsedParams.amountOut.toString(),
+          };
     const { data } = await this.indexer.post<
       {
         mode: 'ExactIn' | 'ExactOut';
@@ -129,7 +140,9 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/swap', {
-      params,
+      assetIn: parsedParams.assetIn,
+      assetOut: parsedParams.assetOut,
+      ...requestPayload,
     });
     return data.map((result) => {
       return params.mode === 'ExactIn'
@@ -141,7 +154,7 @@ export class TorchAPI {
           }
         : {
             mode: 'ExactOut',
-            amountIn: BigInt(result.amountOut!),
+            amountIn: BigInt(result.amountIn!),
             virtualPriceBefore: BigInt(result.virtualPriceBefore),
             virtualPriceAfter: BigInt(result.virtualPriceAfter),
           };
