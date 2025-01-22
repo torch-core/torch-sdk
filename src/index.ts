@@ -184,6 +184,146 @@ export class TorchSDK {
 
     return hops;
   }
+
+  /**
+   * Calculate minimum output amounts for a swap operation
+   *
+   * @param params - The swap parameters
+   * @param hops - The hops for the swap operation
+   * @param poolsRates - The pool rates for the swap operation
+   * @returns An object containing the exact output amounts and the minimum output amounts
+   */
+  private async calculateSwapMinAmountOuts(
+    params: SwapParams,
+    hops: Hop[],
+    poolsRates: PoolRates,
+  ): Promise<{
+    amountIn: bigint;
+    minAmountOuts: bigint[] | null;
+  }> {
+    const parsedParams = SwapParamsSchema.parse(params);
+    let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
+    const amountOuts: bigint[] = [];
+    const minAmountOuts: bigint[] = [];
+
+    /**
+     * Simulate swap to get the exact output amounts
+     */
+    const simulateResults = await this.simulator.swap(params, poolsRates);
+
+    if (simulateResults.length !== hops.length) {
+      throw new Error(
+        `Simulate swap result length (${simulateResults.length}) must match hops length (${hops.length})`,
+      );
+    }
+
+    // Simulate and get swap output amounts
+    for (const [i, simulateResult] of simulateResults.entries()) {
+      let amountOut: bigint;
+
+      if (i === 0) {
+        if (parsedParams.mode === 'ExactIn') {
+          amountIn = parsedParams.amountIn;
+        } else {
+          if (simulateResult.mode !== 'ExactOut') throw new Error('Simulate swap result mode must be ExactOut');
+          amountIn = simulateResult.amountIn;
+        }
+      }
+
+      if (simulateResult.mode === 'ExactIn') {
+        // ExactIn mode => directly use the simulation output amount
+        amountOut = simulateResult.amountOut;
+      } else {
+        // ExactOut mode => every hop's amountOut is the amountIn of the next hop (except the last hop)
+        if (parsedParams.mode === 'ExactIn') {
+          throw new Error('Mode mismatch: Received ExactOut simulation for ExactIn swap');
+        }
+        const nextSimulateResult = simulateResults.at(i + 1);
+        if (nextSimulateResult?.mode === 'ExactIn') {
+          throw new Error('Invalid simulation sequence: ExactIn result after ExactOut');
+        }
+        amountOut = nextSimulateResult ? nextSimulateResult.amountIn : parsedParams.amountOut;
+        amountOuts.push(amountOut);
+      }
+    }
+
+    /**
+     * Calculate minimum output amounts considering slippage
+     *
+     * If slippageTolerance is provided, we need to calculate the minimum output amount for each hop
+     * considering the slippage tolerance
+     */
+    if (parsedParams.slippageTolerance) {
+      for (const amountOut of amountOuts) {
+        const slippageMultiplier = new Decimal(1).minus(parsedParams.slippageTolerance.toNumber());
+        const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
+        minAmountOuts.push(minAmountOut);
+      }
+    }
+
+    /**
+     * Calculate minimum output amounts (if minAmountOut is provided)
+     *
+     * If minAmountOut is provided, we need to simulate the swap with the given minAmountOut as amountOut
+     * and get the minimum output amount for each hop
+     */
+    if (parsedParams.minAmountOut) {
+      const simulateResults = await this.simulator.swap(
+        {
+          mode: 'ExactOut',
+          assetIn: parsedParams.assetIn,
+          assetOut: parsedParams.assetOut,
+          amountOut: parsedParams.minAmountOut, // Assume minAmountOut is the amountOut
+        },
+        poolsRates,
+      );
+
+      // Validate simulate results length
+      if (simulateResults.length !== hops.length) {
+        throw new Error(
+          `Simulate swap result length (${simulateResults.length}) must match hops length (${hops.length})`,
+        );
+      }
+
+      // Extract minAmountOuts from simulate results
+      for (const [i, simulateResult] of simulateResults.entries()) {
+        if (simulateResult.mode === 'ExactIn') {
+          throw new Error('Invalid simulation sequence: ExactIn result after ExactOut');
+        }
+
+        const nextSimulateResult = simulateResults.at(i + 1);
+        if (nextSimulateResult && nextSimulateResult.mode === 'ExactIn') {
+          throw new Error('Invalid simulation sequence: ExactIn result after ExactOut');
+        }
+
+        // minAmountOut is the amountIn of the next hop (except the last hop)
+        minAmountOuts.push(nextSimulateResult ? nextSimulateResult.amountIn : parsedParams.minAmountOut);
+      }
+    }
+
+    // Validate amountOuts
+    if (amountOuts.length !== hops.length) {
+      throw new Error(
+        'Amount out length must be equal to hops length if minAmountOut or slippageTolerance is provided',
+      );
+    }
+
+    // Validate minAmountOuts (if minAmountOut or slippageTolerance is provided)
+    if (parsedParams.minAmountOut || parsedParams.slippageTolerance) {
+      if (minAmountOuts.length !== hops.length) {
+        throw new Error(
+          'Min amount out length must be equal to hops length if minAmountOut or slippageTolerance is provided',
+        );
+      }
+    }
+
+    if (amountIn === 0n) {
+      throw new Error('Amount in must be greater than 0');
+    }
+
+    return { amountIn, minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null };
+  }
+
   /**
    * Generates the payload required to perform a token deposit operation.
    *
@@ -372,16 +512,15 @@ export class TorchSDK {
 
   async getSwapPayload(sender: Address, params: SwapParams): Promise<SenderArguments> {
     const parsedParams = SwapParamsSchema.parse(params);
-    /*
-     * Get hops
-     * - If routes are provided, resolve hops by routes
-     * - Otherwise, get hops from API
-     */
+
+    // Get hops
     let hops: Hop[] = [];
     if (parsedParams.routes && parsedParams.routes.length > 0) {
       const pools = await this.getPools(parsedParams.routes);
       hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
-    } else hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
+    } else {
+      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
+    }
 
     const [firstHop, ...restHops] = hops;
     if (!firstHop) throw new Error('No hops found');
@@ -389,56 +528,17 @@ export class TorchSDK {
     // Get signed rates
     const { signedRate, poolsRates } = await this.getSignedRates(hops.map((hop) => hop.pool));
 
-    // Handle slippage tolerance
-    const minAmountOuts: bigint[] = [];
-    if (parsedParams.slippageTolerance) {
-      const simulateResults = await this.simulator.swap(params, poolsRates);
+    // Get minAmountOuts, amountOuts
+    const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params, hops, poolsRates);
 
-      if (simulateResults.length !== hops.length)
-        throw new Error(
-          `Simulate swap result length (${simulateResults.length}) must match hops length (${hops.length})`,
-        );
+    // Parse exact in params
+    const parsedExactInParams = ExactInParamsSchema.parse({
+      ...parsedParams,
+      mode: 'ExactIn',
+      amountIn,
+    });
 
-      // Calculate minimum output amounts
-      for (const [i, simulateResult] of simulateResults.entries()) {
-        let amountOut: bigint;
-
-        if (simulateResult.mode === 'ExactIn') {
-          // ExactIn mode => directly use the simulation output amount
-          amountOut = simulateResult.amountOut;
-        } else {
-          // ExactOut mode
-          if (parsedParams.mode === 'ExactIn')
-            throw new Error('Mode mismatch: Received ExactOut simulation for ExactIn swap');
-
-          const nextSimulateResult = simulateResults.at(i + 1);
-          if (nextSimulateResult?.mode === 'ExactIn')
-            throw new Error('Invalid simulation sequence: ExactIn result after ExactOut');
-
-          // every hop's amountOut is the amountIn of the next hop (except the last hop)
-          amountOut = nextSimulateResult ? nextSimulateResult.amountIn : parsedParams.amountOut;
-        }
-
-        // Calculate minimum output amount considering slippage
-        // Formula: minAmountOut = amountOut * (1 - slippageTolerance)
-        const slippageMultiplier = new Decimal(1).minus(parsedParams.slippageTolerance.toNumber());
-        const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
-
-        minAmountOuts.push(minAmountOut);
-      }
-    }
-
-    if (minAmountOuts.length !== hops.length) {
-      throw new Error('Min amount out length must be equal to hops length');
-    }
-
-    const parsedExactInParams = ExactInParamsSchema.parse(parsedParams);
-    /**
-     * Swap action
-     * - Swap
-     * - Swap => Swap
-     * - Swap => Withdraw
-     */
+    // Handle different actions
     if (firstHop.action === 'swap') {
       return await this.factory.getSwapPayload(sender, {
         queryId: parsedParams.queryId,
@@ -448,22 +548,17 @@ export class TorchSDK {
         amountIn: parsedExactInParams.amountIn,
         config: {
           deadline: parsedParams.deadline,
-          minAmountOut: minAmountOuts[0],
+          minAmountOut: minAmountOuts?.at(0),
           recipient: parsedParams.recipient,
           signedRate: signedRate,
           fulfillPayload: parsedParams.fulfillPayload,
           rejectPayload: parsedParams.rejectPayload,
-          extraPayload: undefined, // TODO: Add extra payload
+          extraPayload: undefined,
         },
-        next: buildSwapNext(restHops, minAmountOuts.slice(1)) as SwapNext | WithdrawNext,
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
       });
     }
-    /**
-     * Deposit action
-     * - Deposit
-     * - Deposit => Deposit
-     * - Deposit => Swap
-     */
+
     if (firstHop.action === 'deposit') {
       const senderArgs = await this.factory.getDepositPayload(sender, {
         queryId: parsedParams.queryId,
@@ -475,23 +570,19 @@ export class TorchSDK {
           })),
         ),
         config: {
-          minLpAmount: minAmountOuts[0],
+          minLpAmount: minAmountOuts?.at(0) ?? null,
           signedRate: signedRate,
           recipient: parsedParams.recipient,
           fulfillPayload: parsedParams.fulfillPayload,
           rejectPayload: parsedParams.rejectPayload,
-          extraPayload: undefined, // TODO: Add extra payload
+          extraPayload: undefined,
         },
-        next: buildSwapNext(restHops, minAmountOuts.slice(1)) as SwapNext | DepositNext | null,
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | DepositNext | null,
       });
       if (senderArgs.length === 0) throw new Error('No sender arguments found');
       return senderArgs[0]!;
     }
-    /**
-     * Withdraw action
-     * - Withdraw
-     * - Withdraw => Withdraw
-     */
+
     if (firstHop.action === 'withdraw') {
       return await this.factory.getWithdrawPayload(sender, {
         queryId: parsedParams.queryId,
@@ -500,11 +591,12 @@ export class TorchSDK {
         config: {
           mode: 'single',
           assetOut: firstHop.assetOut,
-          minAmountOut: minAmountOuts[0],
+          minAmountOut: minAmountOuts?.at(0) ?? null,
         },
-        next: buildSwapNext(restHops, minAmountOuts.slice(1)) as WithdrawNext | null,
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as WithdrawNext | null,
       });
     }
+
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 

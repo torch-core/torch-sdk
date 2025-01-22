@@ -9,7 +9,7 @@ import { Allocation, Asset } from '@torch-finance/core';
  * @param minAmountOuts - The minimum amount out for each hop
  * @returns The next operation in the transaction sequence
  */
-export function buildSwapNext(hops: Hop[], minAmountOuts: bigint[]): SwapNext | WithdrawNext | DepositNext | null {
+export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext | WithdrawNext | DepositNext | null {
   if (hops.length === 0) {
     return null;
   }
@@ -25,8 +25,8 @@ export function buildSwapNext(hops: Hop[], minAmountOuts: bigint[]): SwapNext | 
       type: 'swap',
       nextPoolAddress: firstRoute.pool.address,
       assetOut: firstRoute.assetOut,
-      minAmountOut: minAmountOuts[0],
-      next: buildSwapNext(restRoutes, minAmountOuts.slice(1)) as SwapNext | WithdrawNext,
+      minAmountOut: minAmountOuts?.at(0),
+      next: buildSwapNext(restRoutes, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
     };
   } else if (firstRoute?.action === 'withdraw') {
     /**
@@ -41,7 +41,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts: bigint[]): SwapNext | 
       nextPoolAddress: firstRoute.pool.address,
       config: {
         mode: 'single',
-        minAmountOut: minAmountOuts[0],
+        minAmountOut: minAmountOuts?.at(0),
         assetOut: firstRoute.assetOut,
       },
     };
@@ -59,7 +59,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts: bigint[]): SwapNext | 
         asset: firstRoute.pool.assets.find((asset) => !asset.equals(Asset.jetton(stablePool.address)))!,
         value: 0n,
       }),
-      minLpAmount: minAmountOuts[0],
+      minLpAmount: minAmountOuts?.at(0),
     };
   }
   return null;
