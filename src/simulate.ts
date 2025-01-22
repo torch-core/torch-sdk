@@ -32,7 +32,7 @@ export abstract class BaseSimulatorAPI {
   }
 }
 
-export class OffchainSimulatorAPI extends BaseSimulatorAPI {
+export class OnchainSimulatorAPI extends BaseSimulatorAPI {
   async swap(): Promise<SimulateSwapResult[]> {
     throw new Error('Not implemented');
   }
@@ -46,7 +46,7 @@ export class OffchainSimulatorAPI extends BaseSimulatorAPI {
   }
 }
 
-export class OnchainSimulatorAPI extends BaseSimulatorAPI {
+export class OffchainSimulatorAPI extends BaseSimulatorAPI {
   async swap(params: SwapParams): Promise<SimulateSwapResult[]> {
     return this.torchApi.simulateSwap(params);
   }
