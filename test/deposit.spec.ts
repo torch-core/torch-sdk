@@ -71,9 +71,6 @@ describe('Deposit Testcases', () => {
     afterEach(async () => {
       // Sender triTON balance should be increased
       await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
-
-      // QuaTON Diff
-      console.log('diff', (await senderTriTONWallet.getBalance()) - senderTriTONBalBefore);
     });
 
     it('should deposit TON, tsTON and stTON to triTON pool', async () => {
@@ -163,6 +160,29 @@ describe('Deposit Testcases', () => {
 
       // Sender stTON balance should be decreased
       await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
+    });
+
+    it('should deposit stTON to triTON pool with recipient', async () => {
+      const recipient = await blockchain.treasury('recipient');
+      // Build deposit params
+      const depositParams: DepositParams = {
+        pool: triTONPool.address,
+        depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+        recipient: recipient.address,
+      };
+
+      // Send deposit
+      const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+      await send(sendDepositArgs);
+
+      // Sender stTON balance should be decreased
+      await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
+
+      // Recipient triTON balance should be increased
+      const recipientTriTONBalance = await senderTriTONWallet.getBalance();
+      expect(recipientTriTONBalance).toBeGreaterThan(0);
+
+      senderTriTONBalBefore = 0n; // This is for pass the afterEach check
     });
   });
 
@@ -285,6 +305,34 @@ describe('Deposit Testcases', () => {
         await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
         await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore);
       });
+
+      it('should deposit stTON and hTON to quaTON pool with recipient', async () => {
+        const recipient = await blockchain.treasury('recipient');
+        // Build deposit params
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          nextDeposit: {
+            pool: quaTONPool.address,
+            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+          },
+          recipient: recipient.address,
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+        await send(sendDepositArgs);
+
+        // Sender stTON and hTON balance should be decreased
+        await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
+        await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore);
+
+        // Recipient quaTON balance should be increased
+        const recipientQuaTONBalance = await senderQuaTONWallet.getBalance();
+        expect(recipientQuaTONBalance).toBeGreaterThan(0);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
     });
 
     describe('Without Meta Asset', () => {
@@ -368,6 +416,29 @@ describe('Deposit Testcases', () => {
 
         // Sender stTON balance should be decreased
         await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
+      });
+
+      it('should deposit stTON to quaTON pool with recipient', async () => {
+        const recipient = await blockchain.treasury('recipient');
+        // Build deposit params
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          recipient: recipient.address,
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+        await send(sendDepositArgs);
+
+        // Sender stTON balance should be decreased
+        await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
+
+        // Recipient quaTON balance should be increased
+        const recipientQuaTONBalance = await senderQuaTONWallet.getBalance();
+        expect(recipientQuaTONBalance).toBeGreaterThan(0);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
       });
     });
   });

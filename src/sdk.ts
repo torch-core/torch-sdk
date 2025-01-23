@@ -395,9 +395,6 @@ export class TorchSDK {
       }
     }
 
-    console.log('minAmountOut', minAmountOut);
-    console.log('nextMinAmountOut', nextMinAmountOut);
-
     const senderArgs = await this.factory.getDepositPayload(sender, {
       queryId: params.queryId || 0n,
       poolAddress: pool.address,
