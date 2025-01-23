@@ -74,6 +74,7 @@
     "zod": "^3.24.1"
   },
   "dependencies": {
+    "@ton/sandbox": "^0.24.0",
     "@torch-finance/dex-contract-wrapper": "^0.2.1",
     "axios": "^1.7.9",
     "decimal.js": "^10.4.3"
