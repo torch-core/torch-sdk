@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ton/sandbox':
+        specifier: ^0.24.0
+        version: 0.24.0(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0)
       '@torch-finance/dex-contract-wrapper':
         specifier: ^0.2.1
         version: 0.2.1(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0)(@ton/ton@15.1.0(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0))(@torch-finance/core@1.3.1(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0)(@ton/ton@15.1.0(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0))(zod@3.24.1))(zod@3.24.1)
@@ -769,6 +772,12 @@ packages:
 
   '@ton/crypto@3.3.0':
     resolution: {integrity: sha512-/A6CYGgA/H36OZ9BbTaGerKtzWp50rg67ZCH2oIjV1NcrBaCK9Z343M+CxedvM7Haf3f/Ee9EhxyeTp0GKMUpA==}
+
+  '@ton/sandbox@0.24.0':
+    resolution: {integrity: sha512-YBUEaC1jNjShkH6dPGC2ogf6O2SE8Ro/M1wT9B2G+wC/ehgDuDa7uIRTWA1ez+046egINyFePi1ogsKczfgF4Q==}
+    peerDependencies:
+      '@ton/core': '>=0.58.1'
+      '@ton/crypto': '>=3.3.0'
 
   '@ton/ton@15.1.0':
     resolution: {integrity: sha512-almetcfTu7jLjcNcEEPB7wAc8yl90ES1M//sOr1QE+kv7RbmEvMkaPSc7kFxzs10qrjIPKxlodBJlMSWP5LuVQ==}
@@ -3239,6 +3248,11 @@ snapshots:
       '@ton/crypto-primitives': 2.1.0
       jssha: 3.2.0
       tweetnacl: 1.0.3
+
+  '@ton/sandbox@0.24.0(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0)':
+    dependencies:
+      '@ton/core': 0.59.1(@ton/crypto@3.3.0)
+      '@ton/crypto': 3.3.0
 
   '@ton/ton@15.1.0(@ton/core@0.59.1(@ton/crypto@3.3.0))(@ton/crypto@3.3.0)':
     dependencies:

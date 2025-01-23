@@ -1,10 +1,17 @@
+import { toNano } from '@ton/core';
+import { SwapParams, TorchSDK } from '../src/index';
+import { FactoryConfig, PoolAssets } from './config';
+function abs(a: bigint, b: bigint) {
+  return a > b ? a - b : b - a;
+}
 describe('Simulate Testcases', () => {
+  let torchSDK: TorchSDK;
   beforeEach(async () => {
-    // torchSDK = new TorchSDK({
-    //   factoryAddress: FactoryConfig.factoryAddress,
-    //   indexerEndpoint: 'http://localhost:3001',
-    //   oracleEndpoint: 'https://oracle.torch.finance',
-    // });
+    torchSDK = new TorchSDK({
+      factoryAddress: FactoryConfig.factoryAddress,
+      indexerEndpoint: 'http://localhost:3001',
+      oracleEndpoint: 'https://oracle.torch.finance',
+    });
   });
 
   describe('Deposit', () => {
@@ -153,37 +160,37 @@ describe('Simulate Testcases', () => {
     //   const difference = abs(finalAmountIn, initAmountIn);
     //   expect(difference < toNano(0.01)).toBeTruthy();
     // });
-    // it('should simulate swap and withdraw single', async () => {
-    //   // Exact In
-    //   const initAmountIn = toNano(0.05);
-    //   const swapExactInParams: SwapParams = {
-    //     mode: 'ExactIn',
-    //     assetIn: PoolAssets.hTONAsset,
-    //     assetOut: PoolAssets.tsTONAsset,
-    //     amountIn: initAmountIn,
-    //   };
-    //   const simulateSwapResult = await torchSDK.simulateSwap(swapExactInParams);
-    //   console.log('simulateSwapResult', simulateSwapResult);
-    //   if (simulateSwapResult[1].mode != 'ExactIn') {
-    //     throw new Error('Swap mode is not ExactIn');
-    //   }
-    //   console.log('simulateSwapResult[0].amountOut', simulateSwapResult[1].amountOut);
-    //   // Exact Out
-    //   const swapExactOutParams: SwapParams = {
-    //     mode: 'ExactOut',
-    //     assetIn: PoolAssets.hTONAsset,
-    //     assetOut: PoolAssets.tsTONAsset,
-    //     amountOut: simulateSwapResult[1].amountOut,
-    //   };
-    //   const simulateSwapExactOutResult = await torchSDK.simulateSwap(swapExactOutParams);
-    //   console.log('simulateSwapExactOutResult', simulateSwapExactOutResult);
-    //   if (simulateSwapExactOutResult[1].mode != 'ExactOut') {
-    //     throw new Error('Swap mode is not ExactOut');
-    //   }
-    //   const finalAmountIn = simulateSwapExactOutResult[1].amountIn;
-    //   const difference = abs(finalAmountIn, initAmountIn);
-    //   expect(difference < toNano(0.01)).toBeTruthy();
-    // });
+    it('should simulate swap and withdraw single', async () => {
+      // Exact In
+      const initAmountIn = toNano(0.05);
+      const swapExactInParams: SwapParams = {
+        mode: 'ExactIn',
+        assetIn: PoolAssets.hTONAsset,
+        assetOut: PoolAssets.tsTONAsset,
+        amountIn: initAmountIn,
+      };
+      const simulateSwapResult = await torchSDK.simulateSwap(swapExactInParams);
+      console.log('simulateSwapResult', simulateSwapResult);
+      if (simulateSwapResult[1].mode != 'ExactIn') {
+        throw new Error('Swap mode is not ExactIn');
+      }
+      console.log('simulateSwapResult[0].amountOut', simulateSwapResult[1].amountOut);
+      // Exact Out
+      const swapExactOutParams: SwapParams = {
+        mode: 'ExactOut',
+        assetIn: PoolAssets.hTONAsset,
+        assetOut: PoolAssets.tsTONAsset,
+        amountOut: simulateSwapResult[1].amountOut,
+      };
+      const simulateSwapExactOutResult = await torchSDK.simulateSwap(swapExactOutParams);
+      console.log('simulateSwapExactOutResult', simulateSwapExactOutResult);
+      if (simulateSwapExactOutResult[1].mode != 'ExactOut') {
+        throw new Error('Swap mode is not ExactOut');
+      }
+      const finalAmountIn = simulateSwapExactOutResult[1].amountIn;
+      const difference = abs(finalAmountIn, initAmountIn);
+      expect(difference < toNano(0.01)).toBeTruthy();
+    });
     // it('should simulate deposit and swap', async () => {
     //   // Exact In
     //   const initAmountIn = toNano(0.05);
