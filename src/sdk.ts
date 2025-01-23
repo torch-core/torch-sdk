@@ -338,7 +338,7 @@ export class TorchSDK {
    *
    * @throws {Error} Throws an error if base pool information is not found for a meta-pool deposit.
    */
-  getDepositPayload = async (sender: Address, params: DepositParams): Promise<SenderArguments[]> => {
+  async getDepositPayload(sender: Address, params: DepositParams): Promise<SenderArguments[]> {
     const parsedParams = DepositParamsSchema.parse(params);
 
     const pools = await this.getPools(
@@ -411,7 +411,7 @@ export class TorchSDK {
         : null,
     });
     return senderArgs;
-  };
+  }
 
   async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
     const parsedParams = new Withdraw(params);
@@ -420,6 +420,7 @@ export class TorchSDK {
       [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
     );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
+
     const { signedRate, poolsRates } = await this.getSignedRates(pools);
 
     // Get minAmountOuts if slippageTolerance is provided
@@ -429,6 +430,9 @@ export class TorchSDK {
     // Validate next withdraw requirements
     if (parsedParams.nextWithdraw) {
       if (!nextPool) throw new Error(`Next pool ${parsedParams.nextWithdraw?.pool} not found`);
+      if (parsedParams.mode === 'single') {
+        parsedParams.withdrawAsset = nextPool.lpAsset.asset;
+      }
     }
 
     // Calculate minAmountOuts
@@ -450,7 +454,7 @@ export class TorchSDK {
         })),
       );
 
-      if (parsedParams.nextWithdraw) {
+      if (parsedParams.nextWithdraw && nextPool) {
         const nextLpIndex = pool.assets.findIndex(({ asset }) => asset.jettonMaster?.equals(nextPool!.address));
         if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
         const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
@@ -465,6 +469,7 @@ export class TorchSDK {
         if (parsedParams.mode === 'single' && nextSimulateResult.amountOuts.length !== 1) {
           throw new Error('In single mode, amount out length must be 1');
         }
+
         nextMinAmountOuts = nextPool
           ? Allocation.createAllocations(
               nextPool.assets.map(({ asset }, i) => ({
