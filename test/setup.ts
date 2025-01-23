@@ -49,6 +49,10 @@ export const initialize = async () => {
     JettonWallet.create(await hTON.getWalletAddress(MockSettings.sender)),
   );
 
+  const senderTriTONWallet = blockchain.openContract(
+    JettonWallet.create(await triTONPool.getWalletAddress(MockSettings.sender)),
+  );
+
   // Utility functions
   const send = async (args: SenderArguments[] | SenderArguments) => {
     if (!Array.isArray(args)) {
@@ -80,6 +84,7 @@ export const initialize = async () => {
     senderStTONWallet,
     senderTsTONWallet,
     senderHTONWallet,
+    senderTriTONWallet,
     send,
   };
 };

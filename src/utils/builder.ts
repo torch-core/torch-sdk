@@ -13,6 +13,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
   if (hops.length === 0) {
     return null;
   }
+  console.log('minAmountOuts in next', minAmountOuts);
   const [firstRoute, ...restRoutes] = hops;
 
   if (firstRoute?.action === 'swap') {
