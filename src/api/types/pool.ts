@@ -7,7 +7,7 @@ export enum PoolType {
   META = 'Meta',
 }
 
-export const BasePoolInfoSchema = z.object({
+export const BasePoolSchema = z.object({
   type: z.nativeEnum(PoolType),
   address: AddressSchema,
   lpAsset: AssetResponseSchema,
@@ -15,11 +15,11 @@ export const BasePoolInfoSchema = z.object({
   useRates: z.boolean(),
 });
 
-export const PoolResponseSchema = BasePoolInfoSchema.extend({
-  basePoolInfo: BasePoolInfoSchema.optional(),
-}).refine((data) => (data.type === PoolType.META ? data.basePoolInfo !== undefined : true), {
-  message: 'basePoolInfo is required for meta pool',
-  path: ['basePoolInfo'],
+export const PoolResponseSchema = BasePoolSchema.extend({
+  basePool: BasePoolSchema.nullish(),
+}).refine((data) => (data.type === PoolType.META ? data.basePool !== undefined : true), {
+  message: 'basePool is required for meta pool',
+  path: ['basePool'],
 });
 
 export type PoolResponse = z.infer<typeof PoolResponseSchema>;

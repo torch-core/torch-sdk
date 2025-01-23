@@ -11,6 +11,7 @@ import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } fro
 import { SwapParams, SwapParamsSchema } from '../types/swap';
 import { DepositParams, DepositParamsSchema } from '../types/deposit';
 import { WithdrawParams } from '../types/withdraw';
+import { GqlQuery, GraphQLResponse } from './types/graphql';
 
 export type TorchAPIOptions = {
   indexerEndpoint: string;
@@ -22,6 +23,7 @@ export class TorchAPI {
   private readonly oracle: AxiosInstance;
 
   constructor(readonly options: TorchAPIOptions) {
+    console.log('options', options);
     this.indexer = axios.create({
       baseURL: options.indexerEndpoint,
       headers: {
@@ -37,75 +39,14 @@ export class TorchAPI {
   }
 
   async getPools(): Promise<PoolResponse[]> {
-    const { data } = await this.indexer.post<{ pools: PoolRawResponse[] }>('/graphql', {
-      query: `
-        query SDK_SYNC_POOLS {
-          pools {
-            type
-            address
-            useRates
-            assets {
-              asset {
-                currencyId
-                id
-                jettonMaster
-                type
-              }
-              decimals
-              description
-              image
-              name
-              symbol
-            }
-            basePool {
-              address
-              type
-              useRates
-              lpAsset {
-                asset {
-                  currencyId
-                  id
-                  jettonMaster
-                  type
-                }
-                decimals
-                description
-                image
-                name
-                symbol
-              }
-              assets {
-                asset {
-                  currencyId
-                  id
-                  jettonMaster
-                  type
-                }
-                decimals
-                description
-                name
-                symbol
-                image
-              }
-            }
-            lpAsset {
-              asset {
-                currencyId
-                id
-                jettonMaster
-                type
-              }
-              decimals
-              description
-              name
-              symbol
-              image
-            }
-          }
-        }
-        `,
+    const { data } = await this.indexer.post<GraphQLResponse<{ pools: PoolRawResponse[] }>>('/graphql', {
+      query: GqlQuery.SDK_SYNC_POOLS,
     });
-    return data.pools.map((pool) => PoolResponseSchema.parse(pool));
+    console.log(
+      'data',
+      data.data.pools.map((pool) => pool.basePool?.assets.map((asset) => asset.asset.type)),
+    );
+    return data.data.pools.map((pool) => PoolResponseSchema.parse(pool));
   }
 
   async getPoolStates(): Promise<SimulatorState[]> {
@@ -118,6 +59,7 @@ export class TorchAPI {
           }
         `,
     });
+    console.log('data', data);
     return data.pools;
   }
 
