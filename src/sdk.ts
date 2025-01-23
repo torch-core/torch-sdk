@@ -218,8 +218,6 @@ export class TorchSDK {
       );
     }
 
-    console.log('simulateResults', simulateResults);
-
     // Simulate and get swap output amounts
     for (const [i, simulateResult] of simulateResults.entries()) {
       let amountOut: bigint;
@@ -264,10 +262,6 @@ export class TorchSDK {
       }
     }
 
-    console.log('Slippage mode??', parsedParams.slippageTolerance);
-    console.log('amountOuts', amountOuts);
-    console.log('minAmountOuts', minAmountOuts);
-
     /**
      * Calculate minimum output amounts (if minAmountOut is provided)
      *
@@ -284,7 +278,6 @@ export class TorchSDK {
         },
         poolsRates,
       );
-      console.log('Min amount out mode simulateResults', simulateResults);
 
       // Validate simulate results length
       if (simulateResults.length !== parsedParams.routes!.length) {
@@ -546,9 +539,7 @@ export class TorchSDK {
     const { signedRate, poolsRates } = await this.getSignedRates(hops.map((hop) => hop.pool));
 
     // Get minAmountOuts, amountOuts
-    console.log('params min amount out', params.minAmountOut);
     const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params, poolsRates);
-    console.log('minAmountOuts After', minAmountOuts);
 
     // Parse exact in params
     const parsedExactInParams = ExactInParamsSchema.parse({
