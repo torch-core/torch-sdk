@@ -103,7 +103,7 @@ export class TorchAPI {
   async getSignedRates(poolAddresses: Address[]): Promise<SignedRate> {
     const { data } = await this.oracle.get<SignedRateResponse>('/signed-rates', {
       params: {
-        poolAddresses: poolAddresses.map((address) => address.toString()),
+        poolAddresses: poolAddresses.map((address) => address.toString()).join(','),
       },
     });
     return SignedRate.fromJSON(data);

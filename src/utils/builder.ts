@@ -56,7 +56,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
       type: 'deposit',
       nextPoolAddress: firstRoute.pool.address,
       metaAllocation: new Allocation({
-        asset: firstRoute.pool.assets.find((asset) => !asset.equals(Asset.jetton(stablePool.address)))!,
+        asset: firstRoute.pool.assets.find((asset) => !asset.asset.equals(Asset.jetton(stablePool.address)))!.asset,
         value: 0n,
       }),
       minLpAmount: minAmountOuts?.at(0),
