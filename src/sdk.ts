@@ -338,7 +338,7 @@ export class TorchSDK {
    *
    * @throws {Error} Throws an error if base pool information is not found for a meta-pool deposit.
    */
-  getDepositPayload = async (sender: Address, params: DepositParams): Promise<SenderArguments[]> => {
+  async getDepositPayload(sender: Address, params: DepositParams): Promise<SenderArguments[]> {
     const parsedParams = DepositParamsSchema.parse(params);
 
     const pools = await this.getPools(
@@ -411,7 +411,7 @@ export class TorchSDK {
         : null,
     });
     return senderArgs;
-  };
+  }
 
   async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
     const parsedParams = new Withdraw(params);
