@@ -352,9 +352,13 @@ export class TorchSDK {
       parsedParams.depositAmounts,
       pool.assets.map(({ asset }) => asset),
     );
-    const metaAsset = nextPool?.assets.find(({ asset }) => asset.jettonMaster?.equals(pool.address));
+    const metaAsset = nextPool?.assets.find(({ asset }) => !asset.jettonMaster?.equals(pool.address));
+    const nextDepositAmounts = parsedParams.nextDeposit?.depositAmounts;
+    if (metaAsset && nextDepositAmounts && !nextDepositAmounts.at(0)!.asset.equals(metaAsset!.asset)) {
+      throw new Error('Wrong meta asset in next deposit');
+    }
     const metaAllocation = metaAsset
-      ? parsedParams.nextDeposit?.depositAmounts?.at(0) || new Allocation({ asset: metaAsset.asset, value: BigInt(0) })
+      ? nextDepositAmounts?.at(0) || new Allocation({ asset: metaAsset.asset, value: BigInt(0) })
       : undefined;
 
     // Validate next deposit
@@ -372,6 +376,8 @@ export class TorchSDK {
 
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
+
+      console.log('simulateResult', simulateResult);
 
       minAmountOut = BigInt(
         new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
