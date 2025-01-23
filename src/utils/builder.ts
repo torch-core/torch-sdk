@@ -15,20 +15,20 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
   }
   const [firstRoute, ...restRoutes] = hops;
 
-  if (firstRoute?.action === 'swap') {
+  if (firstRoute?.action === 'Swap') {
     /**
      * SwapNext
      * --> SwapNext
      * --> DepositNext
      */
     return {
-      type: 'swap',
+      type: 'Swap',
       nextPoolAddress: firstRoute.pool.address,
       assetOut: firstRoute.assetOut,
       minAmountOut: minAmountOuts?.at(0),
       next: buildSwapNext(restRoutes, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
     };
-  } else if (firstRoute?.action === 'withdraw') {
+  } else if (firstRoute?.action === 'Withdraw') {
     /**
      * WithdrawNext
      * --> WithdrawNext
@@ -37,15 +37,15 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
       throw new Error('Withdraw next should be in a stable pool');
     }
     return {
-      type: 'withdraw',
+      type: 'Withdraw',
       nextPoolAddress: firstRoute.pool.address,
       config: {
-        mode: 'single',
+        mode: 'Single',
         minAmountOut: minAmountOuts?.at(0),
         assetOut: firstRoute.assetOut,
       },
     };
-  } else if (firstRoute?.action === 'deposit') {
+  } else if (firstRoute?.action === 'Deposit') {
     /**
      * DepositNext
      * --> DepositNext
@@ -53,7 +53,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
     const stablePool = firstRoute.pool.basePool;
     if (!stablePool) throw new Error('Pool in first hop should exist');
     return {
-      type: 'deposit',
+      type: 'Deposit',
       nextPoolAddress: firstRoute.pool.address,
       metaAllocation: new Allocation({
         asset: firstRoute.pool.assets.find((asset) => !asset.asset.equals(Asset.jetton(stablePool.address)))!.asset,

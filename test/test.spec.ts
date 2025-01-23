@@ -1,11 +1,14 @@
+import { TorchSDK, WithdrawParams } from '../src';
+import { FactoryConfig, PoolAssets, PoolConfig } from './config';
+
 describe('Simulate Testcases', () => {
-  // let torchSDK: TorchSDK;
+  let torchSDK: TorchSDK;
   beforeEach(async () => {
-    // torchSDK = new TorchSDK({
-    //   factoryAddress: FactoryConfig.factoryAddress,
-    //   indexerEndpoint: 'http://localhost:3001',
-    //   oracleEndpoint: 'https://oracle.torch.finance',
-    // });
+    torchSDK = new TorchSDK({
+      factoryAddress: FactoryConfig.factoryAddress,
+      indexerEndpoint: 'http://localhost:3001',
+      oracleEndpoint: 'https://oracle.torch.finance',
+    });
   });
   it('Hello world', async () => {
     console.log('Hello world');
@@ -276,85 +279,85 @@ describe('Simulate Testcases', () => {
   //     expect(difference < 1n * 10n ** 16n).toBeTruthy();
   //   });
   // });
-  // describe('Withdraw', () => {
-  //   it('should qwesimulate withdraw single', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'single',
-  //       pool: PoolConfig.triTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //       withdrawAsset: PoolAssets.tonAsset,
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  //   it('should simulate withdraw balanced', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'balanced',
-  //       pool: PoolConfig.triTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  //   it('should simulate withdraw balanced and withdraw balanced', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'balanced',
-  //       pool: PoolConfig.quaTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //       nextWithdraw: {
-  //         mode: 'balanced',
-  //         pool: PoolConfig.triTONPoolAddress,
-  //       },
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  //   it('should simulate withdraw single and withdraw single', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'single',
-  //       pool: PoolConfig.quaTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //       nextWithdraw: {
-  //         mode: 'single',
-  //         pool: PoolConfig.triTONPoolAddress,
-  //         withdrawAsset: PoolAssets.tonAsset,
-  //       },
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  //   it('should simulate withdraw single and withdraw balanced', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'single',
-  //       pool: PoolConfig.quaTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //       nextWithdraw: {
-  //         mode: 'balanced',
-  //         pool: PoolConfig.triTONPoolAddress,
-  //       },
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  //   it('should simulate withdraw all and withdraw single', async () => {
-  //     const withdrawParams: WithdrawParams = {
-  //       mode: 'balanced',
-  //       pool: PoolConfig.quaTONPoolAddress,
-  //       burnLpAmount: 5n * 10n ** 18n,
-  //       queryId: 1n,
-  //       nextWithdraw: {
-  //         mode: 'single',
-  //         pool: PoolConfig.triTONPoolAddress,
-  //         withdrawAsset: PoolAssets.tonAsset,
-  //       },
-  //     };
-  //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
-  //     console.log(simulateWithdrawResult);
-  //   });
-  // });
+  describe('Withdraw', () => {
+    it('should qwesimulate withdraw single', async () => {
+      const withdrawParams: WithdrawParams = {
+        mode: 'Single',
+        pool: PoolConfig.triTONPoolAddress,
+        burnLpAmount: 5n * 10n ** 18n,
+        queryId: 1n,
+        withdrawAsset: PoolAssets.tonAsset,
+      };
+      const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+      console.log(simulateWithdrawResult);
+    });
+    it('should simulate withdraw balanced', async () => {
+      const withdrawParams: WithdrawParams = {
+        mode: 'Balanced',
+        pool: PoolConfig.triTONPoolAddress,
+        burnLpAmount: 5n * 10n ** 18n,
+        queryId: 1n,
+      };
+      const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+      console.log(simulateWithdrawResult);
+    });
+    it('should simulate withdraw balanced and withdraw balanced', async () => {
+      const withdrawParams: WithdrawParams = {
+        mode: 'Balanced',
+        pool: PoolConfig.quaTONPoolAddress,
+        burnLpAmount: 5n * 10n ** 18n,
+        queryId: 1n,
+        nextWithdraw: {
+          mode: 'Balanced',
+          pool: PoolConfig.triTONPoolAddress,
+        },
+      };
+      const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+      console.log(simulateWithdrawResult);
+    });
+    //   it('should simulate withdraw single and withdraw single', async () => {
+    //     const withdrawParams: WithdrawParams = {
+    //       mode: 'Single',
+    //       pool: PoolConfig.quaTONPoolAddress,
+    //       burnLpAmount: 5n * 10n ** 18n,
+    //       queryId: 1n,
+    //       nextWithdraw: {
+    //         mode: 'Single',
+    //         pool: PoolConfig.triTONPoolAddress,
+    //         withdrawAsset: PoolAssets.tonAsset,
+    //       },
+    //     };
+    //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    //     console.log(simulateWithdrawResult);
+    //   });
+    //   it('should simulate withdraw single and withdraw balanced', async () => {
+    //     const withdrawParams: WithdrawParams = {
+    //       mode: 'Single',
+    //       pool: PoolConfig.quaTONPoolAddress,
+    //       burnLpAmount: 5n * 10n ** 18n,
+    //       queryId: 1n,
+    //       nextWithdraw: {
+    //         mode: 'Balanced',
+    //         pool: PoolConfig.triTONPoolAddress,
+    //       },
+    //     };
+    //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    //     console.log(simulateWithdrawResult);
+    //   });
+    //   it('should simulate withdraw all and withdraw single', async () => {
+    //     const withdrawParams: WithdrawParams = {
+    //       mode: 'Balanced',
+    //       pool: PoolConfig.quaTONPoolAddress,
+    //       burnLpAmount: 5n * 10n ** 18n,
+    //       queryId: 1n,
+    //       nextWithdraw: {
+    //         mode: 'Single',
+    //         pool: PoolConfig.triTONPoolAddress,
+    //         withdrawAsset: PoolAssets.tonAsset,
+    //       },
+    //     };
+    //     const simulateWithdrawResult = await torchSDK.simulateWithdraw(withdrawParams);
+    //     console.log(simulateWithdrawResult);
+    //   });
+  });
 });

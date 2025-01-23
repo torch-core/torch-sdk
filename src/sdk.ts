@@ -214,6 +214,7 @@ export class TorchSDK {
      * Simulate swap to get the exact output amounts
      */
     const simulateResults = await this.simulator.swap(params, poolsRates);
+    console.log('simulateResults', simulateResults);
 
     if (simulateResults.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -304,6 +305,8 @@ export class TorchSDK {
         minAmountOuts.push(nextSimulateResult ? nextSimulateResult.amountIn : parsedParams.minAmountOut);
       }
     }
+
+    console.log('minAmountOuts After', minAmountOuts);
 
     // Validate amountOuts
     if (amountOuts.length !== parsedParams.routes!.length) {
@@ -412,7 +415,7 @@ export class TorchSDK {
       },
       next: parsedParams.nextDeposit
         ? {
-            type: 'deposit',
+            type: 'Deposit',
             nextPoolAddress: nextPool!.address,
             metaAllocation: metaAllocation!,
             minLpAmount: nextMinAmountOut,
@@ -439,21 +442,23 @@ export class TorchSDK {
     // Validate next withdraw requirements
     if (parsedParams.nextWithdraw) {
       if (!nextPool) throw new Error(`Next pool ${parsedParams.nextWithdraw?.pool} not found`);
-      if (parsedParams.mode === 'single') {
+      if (parsedParams.mode === 'Single') {
         parsedParams.withdrawAsset = nextPool.lpAsset.asset;
       }
     }
 
     // Calculate minAmountOuts
     if (parsedParams.slippageTolerance) {
+      console.log('params', params);
       const simulateResults = await this.simulator.withdraw(params, poolsRates);
+      console.log('simulateResults', simulateResults);
       if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
       const simulateResult = simulateResults[0]!;
 
-      if (parsedParams.mode === 'balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
+      if (parsedParams.mode === 'Balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
         throw new Error(`In balanced mode, amount out length must match pool assets length (${pool.assets.length})`);
       }
-      if (parsedParams.mode === 'single' && simulateResult.amountOuts.length !== 1) {
+      if (parsedParams.mode === 'Single' && simulateResult.amountOuts.length !== 1) {
         throw new Error('In single mode, amount out length must be 1');
       }
       minAmountOuts = Allocation.createAllocations(
@@ -470,12 +475,12 @@ export class TorchSDK {
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
 
         const nextSimulateResult = simulateResults[1]!;
-        if (parsedParams.mode === 'balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
+        if (parsedParams.mode === 'Balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
           throw new Error(
             `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
           );
         }
-        if (parsedParams.mode === 'single' && nextSimulateResult.amountOuts.length !== 1) {
+        if (parsedParams.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
           throw new Error('In single mode, amount out length must be 1');
         }
 
@@ -495,31 +500,32 @@ export class TorchSDK {
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
       signedRate: signedRate,
+      recipient: parsedParams.recipient,
       extraPayload: undefined, // TODO: Add extra payload
       config:
-        parsedParams.mode === 'single'
+        parsedParams.mode === 'Single'
           ? {
-              mode: 'single',
+              mode: 'Single',
               assetOut: parsedParams.withdrawAsset!,
               minAmountOut: minAmountOuts?.at(0)?.value,
             }
           : {
-              mode: 'balanced',
+              mode: 'Balanced',
               minAmountOuts: minAmountOuts,
             },
       next: parsedParams.nextWithdraw
         ? {
-            type: 'withdraw',
+            type: 'Withdraw',
             nextPoolAddress: nextPool!.address,
             config:
-              parsedParams.nextWithdraw.mode === 'single'
+              parsedParams.nextWithdraw.mode === 'Single'
                 ? {
-                    mode: 'single',
+                    mode: 'Single',
                     minAmountOut: nextMinAmountOuts?.at(0)?.value,
                     assetOut: parsedParams.withdrawAsset!,
                   }
                 : {
-                    mode: 'balanced',
+                    mode: 'Balanced',
                     minAmountOuts: nextMinAmountOuts,
                   },
           }
@@ -558,7 +564,7 @@ export class TorchSDK {
     });
 
     // Handle different actions
-    if (firstHop.action === 'swap') {
+    if (firstHop.action === 'Swap') {
       const senderArgs = await this.factory.getSwapPayload(sender, {
         queryId: parsedParams.queryId,
         poolAddress: firstHop.pool.address,
@@ -579,7 +585,7 @@ export class TorchSDK {
       return senderArgs;
     }
 
-    if (firstHop.action === 'deposit') {
+    if (firstHop.action === 'Deposit') {
       const senderArgs = await this.factory.getDepositPayload(sender, {
         queryId: parsedParams.queryId,
         poolAddress: firstHop.pool.address,
@@ -603,16 +609,18 @@ export class TorchSDK {
       return senderArgs[0]!;
     }
 
-    if (firstHop.action === 'withdraw') {
+    if (firstHop.action === 'Withdraw') {
       return await this.factory.getWithdrawPayload(sender, {
         queryId: parsedParams.queryId,
         poolAddress: firstHop.pool.address,
         burnLpAmount: parsedExactInParams.amountIn,
         config: {
-          mode: 'single',
+          mode: 'Single',
           assetOut: firstHop.assetOut,
           minAmountOut: minAmountOuts?.at(0) ?? null,
         },
+        recipient: parsedParams.recipient,
+        signedRate: signedRate,
         next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as WithdrawNext | null,
       });
     }
