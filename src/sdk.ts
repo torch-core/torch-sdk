@@ -37,15 +37,15 @@ export class TorchSDK {
   private readonly simulator: Simulator;
   private cachedPools: PoolResponse[];
 
-  constructor(readonly options: TorchSDKOptions) {
+  constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
-    const factoryAddress = options.factoryAddress || Address.parse('factory');
-    const indexerEndpoint = options.indexerEndpoint || 'https://indexer.torch.finance';
-    const oracleEndpoint = options.oracleEndpoint || 'https://oracle.torch.finance';
+    const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
+    const indexerEndpoint = options?.indexerEndpoint || 'https://indexer.torch.finance';
+    const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
 
     // Intialization
     this.tonClient =
-      options.client ||
+      options?.client ||
       new TonClient4({
         endpoint: 'https://testnet-v4.tonhubapi.com',
       });
