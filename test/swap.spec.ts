@@ -50,7 +50,7 @@ describe('Swap Testcases', () => {
     await blockchain.loadFrom(initBlockchainState);
 
     // Get sender balance
-    senderTonBalBefore = await (await blockchain.getContract(sender)).balance;
+    senderTonBalBefore = (await blockchain.getContract(sender)).balance;
     senderStTONBalBefore = await senderStTONWallet.getBalance();
     senderTsTONBalBefore = await senderTsTONWallet.getBalance();
     // senderHTONBalBefore = await senderHTONWallet.getBalance();

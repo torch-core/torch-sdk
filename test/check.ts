@@ -43,6 +43,6 @@ export const checkTONBalDecrease = async (
   balanceBefore: bigint,
   gasFee: bigint = toNano('0.3'),
 ) => {
-  const balanceAfter = await (await blockchain.getContract(sender)).balance;
+  const balanceAfter = (await blockchain.getContract(sender)).balance;
   expect(balanceAfter + gasFee).toBeGreaterThanOrEqual(balanceBefore);
 };
