@@ -50,7 +50,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
      * DepositNext
      * --> DepositNext
      */
-    const stablePool = firstRoute.pool.basePoolInfo;
+    const stablePool = firstRoute.pool.basePool;
     if (!stablePool) throw new Error('Pool in first hop should exist');
     return {
       type: 'deposit',
