@@ -31,20 +31,6 @@ export abstract class BaseSimulatorAPI {
   }
 }
 
-export class OnchainSimulatorAPI extends BaseSimulatorAPI {
-  async swap(): Promise<SimulateSwapResult[]> {
-    throw new Error('Not implemented');
-  }
-
-  async deposit(): Promise<SimulateDepositResult[]> {
-    throw new Error('Not implemented');
-  }
-
-  async withdraw(): Promise<SimulateWithdrawResult[]> {
-    throw new Error('Not implemented');
-  }
-}
-
 export class OffchainSimulatorAPI extends BaseSimulatorAPI {
   async swap(params: SwapParams): Promise<SimulateSwapResult[]> {
     return this.torchApi.simulateSwap(params);
@@ -62,16 +48,8 @@ export class OffchainSimulatorAPI extends BaseSimulatorAPI {
 export class Simulator {
   private simulator: BaseSimulatorAPI;
 
-  constructor(config: SimulatorConfig & { mode: 'offchain' | 'onchain' }) {
-    if (config.mode === 'offchain') {
-      this.simulator = new OffchainSimulatorAPI(config);
-    } else {
-      throw new Error('Onchain simulator is not implemented');
-    }
-  }
-
-  setMode(mode: 'offchain' | 'onchain') {
-    const config = this.simulator.getConfig();
+  constructor(config: Omit<SimulatorConfig, 'mode'> & { mode?: 'offchain' | 'onchain' }) {
+    const mode = config.mode ?? 'offchain'; // Use 'offchain' as default mode
     if (mode === 'offchain') {
       this.simulator = new OffchainSimulatorAPI(config);
     } else {
