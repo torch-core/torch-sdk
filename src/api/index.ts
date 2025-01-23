@@ -192,9 +192,9 @@ export class TorchAPI {
 
   async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
     let withdrawAsset: Asset | undefined;
-    if (params.nextWithdraw && params.mode === 'Single') {
+    if (params.nextWithdraw && params.mode === 'single') {
       withdrawAsset = Asset.jetton(params.nextWithdraw.pool);
-    } else if (params.mode === 'Single') {
+    } else if (params.mode === 'single') {
       withdrawAsset = params.withdrawAsset;
     }
     const { data } = await this.indexer.post<

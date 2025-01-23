@@ -3,7 +3,7 @@ import { Slippage, SlippageSchema } from './slippage';
 import { AddressSchema, Allocation, Asset, Marshallable } from '@torch-finance/core';
 import { z } from 'zod';
 
-export type WithdrawMode = 'Single' | 'Balanced';
+export type WithdrawMode = 'single' | 'balanced';
 
 interface BaseWithdraw {
   pool: z.input<typeof AddressSchema>;
@@ -17,23 +17,23 @@ interface BaseWithdraw {
 // Strictly define NextWithdraw based on mode
 interface NextWithdrawSingleRaw {
   pool: z.input<typeof AddressSchema>;
-  mode: 'Single';
+  mode: 'single';
   withdrawAsset: Asset; // Must be defined for single mode
 }
 interface NextWithdrawSingle {
   pool: Address;
-  mode: 'Single';
+  mode: 'single';
   withdrawAsset: Asset; // Must be defined for single mode
 }
 
 interface NextWithdrawBalancedRaw {
   pool: z.input<typeof AddressSchema>;
-  mode: 'Balanced';
+  mode: 'balanced';
   withdrawAsset?: never; // Must be undefined for balanced mode
 }
 interface NextWithdrawBalanced {
   pool: Address;
-  mode: 'Balanced';
+  mode: 'balanced';
   withdrawAsset?: never; // Must be undefined for balanced mode
 }
 
@@ -42,7 +42,7 @@ export type NextWithdraw = NextWithdrawSingle | NextWithdrawBalanced;
 
 // single mode base type
 interface SingleWithdrawBase extends BaseWithdraw {
-  mode: 'Single';
+  mode: 'single';
 }
 
 // Mutual exclusivity between withdrawAsset and nextWithdraw
@@ -60,7 +60,7 @@ type SingleWithdrawParams = SingleWithdrawWithNext | SingleWithdrawWithAsset;
 
 // balanced mode type
 interface BalancedWithdrawParams extends BaseWithdraw {
-  mode: 'Balanced';
+  mode: 'balanced';
   nextWithdraw?: NextWithdrawRaw; // No restrictions for nextWithdraw in balanced mode
 }
 
@@ -87,7 +87,7 @@ export class Withdraw implements Marshallable {
     this.minAmountOuts = params.minAmountOuts ? Allocation.createAllocations(params.minAmountOuts) : undefined;
     this.extraPayload = params.extraPayload;
 
-    if (params.mode === 'Single' && !params.withdrawAsset && !params.nextWithdraw) {
+    if (params.mode === 'single' && !params.withdrawAsset && !params.nextWithdraw) {
       throw new Error('withdrawAsset must be defined when mode is single');
     }
 
@@ -100,9 +100,9 @@ export class Withdraw implements Marshallable {
     // Validate parameters based on mode
     if (params.nextWithdraw) {
       const hasNextWithdrawAsset = Boolean(params.nextWithdraw?.withdrawAsset);
-      const isNextModeSingle = params.nextWithdraw?.mode === 'Single';
-      const isNextModeBalanced = params.nextWithdraw?.mode === 'Balanced';
-      if (params.mode === 'Single') {
+      const isNextModeSingle = params.nextWithdraw?.mode === 'single';
+      const isNextModeBalanced = params.nextWithdraw?.mode === 'balanced';
+      if (params.mode === 'single') {
         if (hasNextWithdrawAsset && isNextModeBalanced) {
           throw new Error('Next withdrawAsset must be undefined when nextWithdraw mode is balanced');
         }
@@ -111,7 +111,7 @@ export class Withdraw implements Marshallable {
         }
 
         this.withdrawAsset = undefined;
-      } else if (params.mode === 'Balanced') {
+      } else if (params.mode === 'balanced') {
         if (isNextModeSingle && !hasNextWithdrawAsset) {
           throw new Error('Next withdrawAsset must be defined when nextWithdraw mode is single');
         }
@@ -124,21 +124,21 @@ export class Withdraw implements Marshallable {
           );
         }
       }
-      if (params.nextWithdraw.mode === 'Single') {
+      if (params.nextWithdraw.mode === 'single') {
         this.nextWithdraw = {
-          mode: 'Single',
+          mode: 'single',
           pool: AddressSchema.parse(params.nextWithdraw.pool),
           withdrawAsset: params.nextWithdraw.withdrawAsset,
         };
       } else {
         this.nextWithdraw = {
-          mode: 'Balanced',
+          mode: 'balanced',
           pool: AddressSchema.parse(params.nextWithdraw.pool),
         };
       }
     }
 
-    if (params.mode === 'Single' && !params.nextWithdraw) {
+    if (params.mode === 'single' && !params.nextWithdraw) {
       this.withdrawAsset = params.withdrawAsset;
     }
   }
