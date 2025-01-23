@@ -78,17 +78,20 @@ export class TorchSDK {
 
   // Get pool data by addresses
   private async getPools(addresses: Address[]): Promise<PoolResponse[]> {
-    const poolInfos = await Promise.all(
-      addresses.map(async (address) => {
-        let pool = this.cachedPools.find((p) => p.address.equals(address));
-        if (!pool) {
-          await this.sync();
-          pool = this.cachedPools.find((p) => p.address.equals(address));
-        }
-        if (!pool) throw new Error(`Pool not found: ${address.toString()}`);
-        return pool;
-      }),
-    );
+    const missingAddresses = addresses.filter((address) => !this.cachedPools.some((p) => p.address.equals(address)));
+
+    if (missingAddresses.length > 0) {
+      await this.sync();
+    }
+
+    const poolInfos = addresses.map((address) => {
+      const pool = this.cachedPools.find((p) => p.address.equals(address));
+      if (!pool) {
+        throw new Error(`Pool not found: ${address.toString()}`);
+      }
+      return pool;
+    });
+
     return poolInfos;
   }
 
