@@ -47,7 +47,7 @@ export class TorchSDK {
     this.tonClient =
       options.client ||
       new TonClient4({
-        endpoint: 'https://toncenter.com/api/v2/jsonRPC',
+        endpoint: 'https://testnet-v4.tonhubapi.com',
       });
     this.api = new TorchAPI({
       indexerEndpoint,

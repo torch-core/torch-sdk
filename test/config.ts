@@ -18,3 +18,8 @@ export abstract class PoolAssets {
   static readonly hTONAsset = Asset.jetton('EQDInlQkBcha9-KPGDR-eWi5VGhYPXO5s04amtzZ07s0Kzuu');
   static readonly quaTONAsset = Asset.jetton(PoolConfig.quaTONPoolAddress);
 }
+
+export abstract class MockSettings {
+  static readonly emulateBlockSeq = 27350396;
+  static readonly sender = Address.parse('0QAHg-2Oy8Mc2BfENEaBcoDNXvHCu7mc28KkPIks8ZVqwmzg');
+}
