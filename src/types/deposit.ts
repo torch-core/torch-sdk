@@ -1,5 +1,5 @@
 import { SlippageSchema } from './slippage';
-import { MinAmountOut, QueryId } from './common';
+import { QueryId } from './common';
 import { z } from 'zod';
 import { AddressSchema, Allocation, AllocationSchema } from '@torch-finance/core';
 import { Cell } from '@ton/core';
@@ -18,7 +18,7 @@ const DepositNextSchema = z.object({
 
 export const DepositParamsSchema = DepositBaseSchema.extend({
   slippageTolerance: SlippageSchema.optional(),
-  minAmountOut: MinAmountOut.optional(),
+  // minAmountOut: MinAmountOut.optional(), // TODO: Add simulate exact out deposit in simulator first
   queryId: QueryId.optional(),
   recipient: AddressSchema.optional(),
   fulfillPayload: z.instanceof(Cell).optional(),
@@ -26,15 +26,15 @@ export const DepositParamsSchema = DepositBaseSchema.extend({
   extraPayload: z.null().optional(), // TODO: support extra payload when referral program is implemented
   nextDeposit: DepositNextSchema.optional(),
 })
-  .superRefine((data, ctx) => {
-    // Should not set both slippage tolerance and min amount out
-    if (data.slippageTolerance !== undefined && data.minAmountOut !== undefined) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Cannot set both slippage tolerance and min amount out when constructing a deposit',
-      });
-    }
-  })
+  // .superRefine((data, ctx) => {
+  //   // Should not set both slippage tolerance and min amount out
+  //   if (data.slippageTolerance !== undefined && data.minAmountOut !== undefined) {
+  //     ctx.addIssue({
+  //       code: z.ZodIssueCode.custom,
+  //       message: 'Cannot set both slippage tolerance and min amount out when constructing a deposit',
+  //     });
+  //   }
+  // })
   .transform((data) => {
     return {
       ...data,
