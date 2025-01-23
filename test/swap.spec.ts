@@ -5,8 +5,13 @@ import { PoolAssets } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { SwapParams } from '../src/types/swap';
 import { JettonMaster, JettonWallet } from '@ton/ton';
-import { checkJettonBalDecrease, checkJettonBalIncrease, checkJettonBalNotChanged, checkTONBalDecrease } from './check';
-import { abs } from './abs';
+import {
+  checkJettonBalDecrease,
+  checkJettonBalIncrease,
+  checkJettonBalNotChanged,
+  checkTONBalDecrease,
+} from './helper/check';
+import { abs } from './helper/abs';
 
 describe('Swap Testcases', () => {
   // set timeout: 6 minutes
