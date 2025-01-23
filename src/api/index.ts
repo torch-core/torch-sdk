@@ -23,7 +23,6 @@ export class TorchAPI {
   private readonly oracle: AxiosInstance;
 
   constructor(readonly options: TorchAPIOptions) {
-    console.log('options', options);
     this.indexer = axios.create({
       baseURL: options.indexerEndpoint,
       headers: {
@@ -42,10 +41,6 @@ export class TorchAPI {
     const { data } = await this.indexer.post<GraphQLResponse<{ pools: PoolRawResponse[] }>>('/graphql', {
       query: GqlQuery.SDK_SYNC_POOLS,
     });
-    console.log(
-      'data',
-      data.data.pools.map((pool) => pool.basePool?.assets.map((asset) => asset.asset.type)),
-    );
     return data.data.pools.map((pool) => PoolResponseSchema.parse(pool));
   }
 
@@ -59,7 +54,6 @@ export class TorchAPI {
           }
         `,
     });
-    console.log('data', data);
     return data.pools;
   }
 
