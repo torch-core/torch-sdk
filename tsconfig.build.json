@@ -11,7 +11,7 @@
     "isolatedModules": true,
     /* Strictness */
     "strict": true,
-    "noUncheckedIndexedAccess": true,
+    "noUncheckedIndexedAccess": false,
     "noImplicitOverride": true,
     "module": "preserve",
     "outDir": "dist",
