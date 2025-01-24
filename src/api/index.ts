@@ -57,19 +57,6 @@ export class TorchAPI {
     return data.pools;
   }
 
-  async getPoolByAddress(address: Address): Promise<PoolResponse> {
-    const { data } = await this.indexer.post<{ pool: PoolRawResponse }>('/graphql', {
-      query: `
-          query {
-            pool(address: "${address.toRawString()}") {
-              ...PoolResponse
-            }
-          }
-        `,
-    });
-    return PoolResponseSchema.parse(data.pool);
-  }
-
   async getExchangableAssets(assetIn?: Asset): Promise<AssetResponse[]> {
     const { data } = await this.indexer.post<{ tokens: AssetRawResponse[] }>('/graphql', {
       query: `

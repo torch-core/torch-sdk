@@ -17,10 +17,6 @@ query SDK_SYNC_POOLS {
         type
         }
         decimals
-        description
-        image
-        name
-        symbol
     }
     basePool {
         address
@@ -34,10 +30,6 @@ query SDK_SYNC_POOLS {
             type
         }
         decimals
-        description
-        image
-        name
-        symbol
         }
         assets {
         asset {
@@ -47,10 +39,6 @@ query SDK_SYNC_POOLS {
             type
         }
         decimals
-        description
-        name
-        symbol
-        image
         }
     }
     lpAsset {
@@ -61,10 +49,6 @@ query SDK_SYNC_POOLS {
         type
         }
         decimals
-        description
-        name
-        symbol
-        image
     }
     }
 }
