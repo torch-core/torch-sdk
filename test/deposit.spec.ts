@@ -367,9 +367,6 @@ describe('Deposit Testcases', () => {
     afterEach(async () => {
       // Sender quaTON Lp balance should be increased
       await checkJettonBalIncrease(senderQuaTONWallet, senderQuaTONBalBefore);
-
-      // QuaTON Diff
-      console.log('diff', (await senderQuaTONWallet.getBalance()) - senderQuaTONBalBefore);
     });
 
     describe('With Meta Asset', () => {
@@ -460,6 +457,41 @@ describe('Deposit Testcases', () => {
         await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore);
       });
 
+      it('should refund TON, stTON and hTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([
+          { asset: PoolAssets.tonAsset, value: toNano('100') },
+          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+        ]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          nextDeposit: {
+            pool: quaTONPool.address,
+            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+          },
+          slippageTolerance: 0.01,
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+
+        await send(sendDepositArgs);
+
+        // Sender TON, stTON and hTON balance should be not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
+        await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
+
       it('should deposit TON and hTON to quaTON pool', async () => {
         // Build deposit params
         const depositParams: DepositParams = {
@@ -480,6 +512,37 @@ describe('Deposit Testcases', () => {
         await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore);
       });
 
+      it('should refund TON and hTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.tonAsset, value: toNano('100') }]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          nextDeposit: {
+            pool: quaTONPool.address,
+            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+          },
+          slippageTolerance: 0.01,
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+
+        await send(sendDepositArgs);
+
+        // Sender TON and hTON balance should be not changed
+        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
+        await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
+
       it('should deposit stTON and hTON to quaTON pool', async () => {
         // Build deposit params
         const depositParams: DepositParams = {
@@ -498,6 +561,35 @@ describe('Deposit Testcases', () => {
         // Sender stTON and hTON balance should be decreased
         await checkJettonBalDecrease(senderStTONWallet, senderStTONBalBefore);
         await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore);
+      });
+
+      it('should refund stTON and hTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.stTONAsset, value: toNano('100') }]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          nextDeposit: {
+            pool: quaTONPool.address,
+            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+          },
+          slippageTolerance: 0.01,
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+
+        await send(sendDepositArgs);
+
+        // Sender stTON and hTON balance should be not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
+        await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
       });
 
       it('should deposit stTON and hTON to quaTON pool with recipient', async () => {
@@ -554,6 +646,39 @@ describe('Deposit Testcases', () => {
         await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
       });
 
+      it('should refund TON, tsTON and stTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([
+          { asset: PoolAssets.tonAsset, value: toNano('100') },
+          { asset: PoolAssets.tsTONAsset, value: toNano('11') },
+          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+        ]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          slippageTolerance: 0.01,
+          nextDeposit: {
+            pool: quaTONPool.address,
+          },
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+        await send(sendDepositArgs);
+
+        // Sender tsTON and stTON balance should not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+        await checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
+
       it('should deposit TON and stTON to quaTON pool', async () => {
         // Build deposit params
         const depositParams: DepositParams = {
@@ -576,6 +701,37 @@ describe('Deposit Testcases', () => {
         await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
       });
 
+      it('should refund TON and stTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([
+          { asset: PoolAssets.tonAsset, value: toNano('100') },
+          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+        ]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          slippageTolerance: 0.01,
+          nextDeposit: {
+            pool: quaTONPool.address,
+          },
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+        await send(sendDepositArgs);
+
+        // Sender stTON balance should not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
+
       it('should deposit TON to quaTON pool', async () => {
         // Build deposit params
         const depositParams: DepositParams = {
@@ -592,6 +748,31 @@ describe('Deposit Testcases', () => {
 
         // Sender TON balance should be decreased
         await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+      });
+
+      it('should refund TON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.tonAsset, value: toNano('100') }]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          slippageTolerance: 0.01,
+          nextDeposit: {
+            pool: quaTONPool.address,
+          },
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+        await send(sendDepositArgs);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
       });
 
       it('should deposit stTON to quaTON pool', async () => {
@@ -634,6 +815,34 @@ describe('Deposit Testcases', () => {
         // Recipient quaTON balance should be increased
         const recipientQuaTONBalance = await recipientQuaTONWallet.getBalance();
         expect(recipientQuaTONBalance).toBeGreaterThan(0);
+
+        senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
+      });
+
+      it('should refund stTON when slippage is not met', async () => {
+        // Build deposit params
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.stTONAsset, value: toNano('100') }]);
+        const depositParams: DepositParams = {
+          pool: triTONPool.address,
+          depositAmounts,
+          slippageTolerance: 0.01,
+          nextDeposit: {
+            pool: quaTONPool.address,
+          },
+        };
+
+        // Send deposit
+        const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+
+        // Someone deposit to make the price fluctuate
+        await depositImpactTriTON(depositAmounts);
+        await send(sendDepositArgs);
+
+        // Sender stTON balance should not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+
+        // Sender TON balance should be only decreased by gas fee
+        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
 
         senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
       });
