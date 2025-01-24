@@ -10,7 +10,7 @@ interface BaseWithdraw {
   burnLpAmount: bigint;
   queryId: bigint;
   recipient?: z.input<typeof AddressSchema>;
-  slippageTolerance?: Slippage;
+  slippageTolerance?: z.input<typeof SlippageSchema>;
   minAmountOuts?: Allocation | Allocation[];
   extraPayload?: null; // TODO: implement extraPayload when referral is implemented
 }
@@ -75,7 +75,6 @@ export class Withdraw implements Marshallable {
   queryId: bigint;
   slippageTolerance?: Slippage;
   recipient?: Address;
-  // minAmountOuts?: Allocation[]; // TODO: implement minAmountOuts when simulate withdraw exact out is implemented
   extraPayload?: null; // TODO: implement extraPayload when referral is implemented
   withdrawAsset?: Asset;
   nextWithdraw?: NextWithdraw;
@@ -86,7 +85,6 @@ export class Withdraw implements Marshallable {
     this.burnLpAmount = params.burnLpAmount;
     this.queryId = params.queryId ?? 0n;
     this.slippageTolerance = params.slippageTolerance ? SlippageSchema.parse(params.slippageTolerance) : undefined;
-    // this.minAmountOuts = params.minAmountOuts ? Allocation.createAllocations(params.minAmountOuts) : undefined;
     this.recipient = params.recipient ? AddressSchema.parse(params.recipient) : undefined;
     this.extraPayload = params.extraPayload;
 
@@ -120,9 +118,6 @@ export class Withdraw implements Marshallable {
         }
         if (isNextModeBalanced && hasNextWithdrawAsset) {
           throw new Error('Next withdrawAsset must be undefined when nextWithdraw mode is balanced');
-        }
-        if (params.slippageTolerance) {
-          throw new Error('slippageTolerance are not supported in "withdraw all and withdraw next" for now');
         }
       }
       if (params.nextWithdraw.mode === 'Single') {
@@ -160,7 +155,6 @@ export class Withdraw implements Marshallable {
       queryId: this.queryId === undefined ? undefined : this.queryId.toString(),
       recipient: this.recipient ? this.recipient.toString() : undefined,
       slippageTolerance: this.slippageTolerance ? this.slippageTolerance.toString() : undefined,
-      // minAmountOuts: this.minAmountOuts ? this.minAmountOuts?.map((a) => a.toJSON()) : undefined,
       extraPayload: this.extraPayload,
     };
   }

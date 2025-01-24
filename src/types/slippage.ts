@@ -12,4 +12,4 @@ export const SlippageSchema = z
     return data.gte(0) && data.lte(1);
   }, 'Slippage tolerance must between 0 and 1');
 
-export type Slippage = z.input<typeof SlippageSchema>;
+export type Slippage = z.infer<typeof SlippageSchema>;

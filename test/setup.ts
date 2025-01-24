@@ -5,10 +5,11 @@ import {
   RemoteBlockchainStorage,
   wrapTonClient4ForRemote,
 } from '@ton/sandbox';
-import { JettonMaster, JettonWallet, SenderArguments, TonClient4 } from '@ton/ton';
-import { TorchSDK } from '../src';
+import { JettonMaster, JettonWallet, SenderArguments, toNano, TonClient4 } from '@ton/ton';
+import { SwapParams, TorchSDK } from '../src';
 import { FactoryConfig, MockSettings, PoolAssets, PoolConfig } from './config';
 import { Factory, Pool } from '@torch-finance/dex-contract-wrapper';
+import { Asset } from '@torch-finance/core';
 
 const endpoint = 'https://testnet-v4.tonhubapi.com';
 const client = new TonClient4({ endpoint });
@@ -75,6 +76,32 @@ export const initialize = async () => {
     }
   };
 
+  const swapImpactTriTON = async (assetIn: Asset = PoolAssets.tsTONAsset, assetOut: Asset = PoolAssets.stTONAsset) => {
+    const swapFluctuateParams: SwapParams = {
+      mode: 'ExactIn',
+      assetIn,
+      assetOut,
+      amountIn: toNano('0.5'),
+    };
+    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
+    await send(sendFluctuateArgs);
+  };
+
+  const swapImpactQuaTON = async (
+    assetIn: Asset = PoolAssets.triTONAsset,
+    assetOut: Asset = PoolAssets.hTONAsset,
+    amountIn: bigint = 1n * 10n ** 18n,
+  ) => {
+    const swapFluctuateParams: SwapParams = {
+      mode: 'ExactIn',
+      assetIn,
+      assetOut,
+      amountIn,
+    };
+    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
+    await send(sendFluctuateArgs);
+  };
+
   return {
     torchSDK,
     blockchain,
@@ -91,5 +118,7 @@ export const initialize = async () => {
     senderTriTONWallet,
     senderQuaTONWallet,
     send,
+    swapImpactTriTON,
+    swapImpactQuaTON,
   };
 };
