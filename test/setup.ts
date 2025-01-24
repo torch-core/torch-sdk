@@ -1,6 +1,7 @@
 import {
   Blockchain,
   internal,
+  printTransactionFees,
   RemoteBlockchainStorage,
   wrapTonClient4ForRemote,
 } from '@ton/sandbox';
@@ -63,7 +64,7 @@ export const initialize = async () => {
       args = [args];
     }
     for (const arg of args) {
-      await blockchain.sendMessage(
+      const r = await blockchain.sendMessage(
         internal({
           from: MockSettings.sender,
           to: arg.to,
@@ -71,15 +72,20 @@ export const initialize = async () => {
           body: arg.body!,
         }),
       );
+      printTransactionFees(r.transactions);
     }
   };
 
-  const swapImpactTriTON = async (assetIn: Asset = PoolAssets.tsTONAsset, assetOut: Asset = PoolAssets.stTONAsset) => {
+  const swapImpactTriTON = async (
+    assetIn: Asset = PoolAssets.tsTONAsset,
+    assetOut: Asset = PoolAssets.stTONAsset,
+    amountIn: bigint = toNano('0.5'),
+  ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',
       assetIn,
       assetOut,
-      amountIn: toNano('0.5'),
+      amountIn,
     };
     const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
     await send(sendFluctuateArgs);
