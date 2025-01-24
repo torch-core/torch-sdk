@@ -1,10 +1,9 @@
-import Decimal from 'decimal.js';
 import { SimulateSwapExactInResult, SimulateSwapExactOutResult } from '@torch-finance/dex-contract-wrapper';
 
 interface BaseSimulateSwapResponse {
   minAmountOut: bigint | undefined;
   details: SimulateSwapExactInResult[] | SimulateSwapExactOutResult[];
-  executionPrice: Decimal;
+  executionPrice: string;
 }
 
 export interface SimulateSwapExactInResponse extends BaseSimulateSwapResponse {

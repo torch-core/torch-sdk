@@ -1,19 +1,15 @@
 import { SlippageSchema } from './slippage';
 import { AddressSchema, Asset, AssetSchema } from '@torch-finance/core';
 import { z } from 'zod';
+import { BigIntSchema, QueryId } from './common';
 
 const SingleWithdrawModeSchema = z.literal('Single');
 const BalancedWithdrawModeSchema = z.literal('Balanced');
-const BigIntSchema = z.union([
-  z.bigint(),
-  z.number().transform((v) => BigInt(v.toString())),
-  z.string().transform((v) => BigInt(v)),
-]);
 
 const BaseWithdrawSchema = z.object({
   pool: AddressSchema,
   burnLpAmount: BigIntSchema,
-  queryId: BigIntSchema.optional(),
+  queryId: QueryId.optional(),
   recipient: AddressSchema.optional(),
   slippageTolerance: SlippageSchema.optional(),
   extraPayload: z.null().optional(),

@@ -356,13 +356,13 @@ export class TorchSDK {
   private calculateExecutionPrice(
     tokenIn: { amount: bigint; decimals: number },
     tokenOut: { amount: bigint; decimals: number },
-  ): Decimal {
+  ): string {
     // Convert amounts to decimal for precise calculation
     const amountInDecimal = new Decimal(tokenIn.amount.toString()).div(10 ** tokenIn.decimals);
     const amountOutDecimal = new Decimal(tokenOut.amount.toString()).div(10 ** tokenOut.decimals);
 
     // Calculate price as amountIn/amountOut
-    return amountInDecimal.div(amountOutDecimal);
+    return amountInDecimal.div(amountOutDecimal).toFixed(9);
   }
 
   /**
@@ -434,7 +434,7 @@ export class TorchSDK {
     }
 
     const senderArgs = await this.factory.getDepositPayload(sender, {
-      queryId: params.queryId || 0n,
+      queryId: parsedParams.queryId || 0n,
       poolAddress: pool.address,
       poolAllocations,
       config: {
