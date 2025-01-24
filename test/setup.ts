@@ -1,7 +1,6 @@
 import {
   Blockchain,
   internal,
-  printTransactionFees,
   RemoteBlockchainStorage,
   wrapTonClient4ForRemote,
 } from '@ton/sandbox';
@@ -64,7 +63,7 @@ export const initialize = async () => {
       args = [args];
     }
     for (const arg of args) {
-      const r = await blockchain.sendMessage(
+      await blockchain.sendMessage(
         internal({
           from: MockSettings.sender,
           to: arg.to,
@@ -72,7 +71,6 @@ export const initialize = async () => {
           body: arg.body!,
         }),
       );
-      printTransactionFees(r.transactions);
     }
   };
 

@@ -475,7 +475,7 @@ describe('Swap Testcases', () => {
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the first pool
         await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
-        
+
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
         senderTsTONBalBefore = await senderTsTONWallet.getBalance();
