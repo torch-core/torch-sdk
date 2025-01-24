@@ -121,9 +121,6 @@ export class Withdraw implements Marshallable {
         if (isNextModeBalanced && hasNextWithdrawAsset) {
           throw new Error('Next withdrawAsset must be undefined when nextWithdraw mode is balanced');
         }
-        if (params.slippageTolerance) {
-          throw new Error('slippageTolerance are not supported in "withdraw all and withdraw next" for now');
-        }
       }
       if (params.nextWithdraw.mode === 'Single') {
         this.nextWithdraw = {

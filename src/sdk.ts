@@ -490,6 +490,7 @@ export class TorchSDK {
         if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
         const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
+        if (simulateResults.length < 2) throw new Error('Simulate withdraw result length must be greater than 1');
 
         const nextSimulateResult = simulateResults[1]!;
         if (parsedParams.mode === 'Balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
@@ -502,23 +503,23 @@ export class TorchSDK {
         }
 
         // Calculate nextMinAmountOuts based on on mode
-        if (parsedParams.mode === 'Balanced') {
+        if (parsedParams.nextWithdraw.mode === 'Balanced') {
           nextMinAmountOuts = Allocation.createAllocations(
             nextPool.assets.map(({ asset }, i) => ({
               asset,
               value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[i]!,
+                nextSimulateResult.amountOuts[i],
                 parsedParams.slippageTolerance!,
               ),
             })),
           );
         }
-        if (parsedParams.mode === 'Single') {
+        if (parsedParams.nextWithdraw.mode === 'Single') {
           nextMinAmountOuts = Allocation.createAllocations([
             {
-              asset: parsedParams.withdrawAsset!,
+              asset: parsedParams.nextWithdraw.withdrawAsset!,
               value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[0]!,
+                nextSimulateResult.amountOuts[0],
                 parsedParams.slippageTolerance!,
               ),
             },
@@ -556,8 +557,8 @@ export class TorchSDK {
               parsedParams.nextWithdraw.mode === 'Single'
                 ? {
                     mode: 'Single',
+                    assetOut: parsedParams.nextWithdraw.withdrawAsset,
                     minAmountOut: nextMinAmountOuts?.at(0)?.value,
-                    assetOut: parsedParams.withdrawAsset!,
                   }
                 : {
                     mode: 'Balanced',
