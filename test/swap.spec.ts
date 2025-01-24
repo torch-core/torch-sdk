@@ -3,7 +3,7 @@ import { TorchSDK } from '../src';
 import { initialize } from './setup';
 import { PoolAssets } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
-import { SwapParams } from '../src/types/swap';
+import { SwapParams } from '../src/types/sdk';
 import { JettonMaster, JettonWallet } from '@ton/ton';
 import {
   checkJettonBalDecrease,
