@@ -494,12 +494,15 @@ export class TorchSDK {
         if (simulateResults.length < 2) throw new Error('Simulate withdraw result length must be greater than 1');
 
         const nextSimulateResult = simulateResults[1]!;
-        if (parsedParams.mode === 'Balanced' && nextSimulateResult.amountOuts.length !== nextPool!.assets.length) {
+        if (
+          parsedParams.nextWithdraw.mode === 'Balanced' &&
+          nextSimulateResult.amountOuts.length !== nextPool!.assets.length
+        ) {
           throw new Error(
             `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
           );
         }
-        if (parsedParams.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
+        if (parsedParams.nextWithdraw.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
           throw new Error('In single mode, amount out length must be 1');
         }
 
