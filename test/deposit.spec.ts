@@ -57,7 +57,6 @@ describe('Deposit Testcases', () => {
     const depositFluctuateParams: DepositParams = {
       pool: triTONPool.address,
       depositAmounts,
-      slippageTolerance: 0.01,
     };
 
     // Send deposit

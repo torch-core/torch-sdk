@@ -69,12 +69,16 @@ export const initialize = async () => {
     }
   };
 
-  const swapImpactTriTON = async (assetIn: Asset = PoolAssets.tsTONAsset, assetOut: Asset = PoolAssets.stTONAsset) => {
+  const swapImpactTriTON = async (
+    assetIn: Asset = PoolAssets.tsTONAsset,
+    assetOut: Asset = PoolAssets.stTONAsset,
+    amountIn: bigint = toNano('0.5'),
+  ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',
       assetIn,
       assetOut,
-      amountIn: toNano('0.5'),
+      amountIn,
     };
     const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
     await send(sendFluctuateArgs);

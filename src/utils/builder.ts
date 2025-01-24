@@ -2,8 +2,6 @@ import { DepositNext, SwapNext, WithdrawNext } from '@torch-finance/dex-contract
 import { Allocation, Asset } from '@torch-finance/core';
 
 import { Hop } from '../types/common';
-import { PoolType } from '../types/api';
-
 /**
  * Build the next operation in the transaction sequence
  * @param hops - The hops to build the next operation
@@ -34,7 +32,7 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
      * WithdrawNext
      * --> WithdrawNext
      */
-    if (firstRoute.pool.type !== PoolType.BASE) {
+    if (firstRoute.pool.type !== 'Base') {
       throw new Error('Withdraw next should be in a stable pool');
     }
     return {

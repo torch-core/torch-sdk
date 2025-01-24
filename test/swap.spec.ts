@@ -54,7 +54,7 @@ describe('Swap Testcases', () => {
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
 
-  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset) => Promise<void>;
+  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
   let swapImpactQuaTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
 
   beforeAll(async () => {
@@ -474,7 +474,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the first pool
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
