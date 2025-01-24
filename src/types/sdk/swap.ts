@@ -12,7 +12,7 @@ const GeneralSwapParamsSchema = z.object({
   routes: z.array(AddressSchema).optional(),
   queryId: QueryId.optional().transform((v) => v ?? 0n),
   deadline: z.bigint().optional(),
-  slippageTolerance: z.union([SlippageSchema, z.instanceof(Decimal)]).optional(),
+  slippageTolerance: z.union([SlippageSchema, z.instanceof(Decimal).refine((v) => v.gte(0) && v.lte(1))]).optional(),
   minAmountOut: MinAmountOut.optional(),
   recipient: AddressSchema.optional(),
   fulfillPayload: z.instanceof(Cell).optional(),
@@ -22,12 +22,12 @@ const GeneralSwapParamsSchema = z.object({
 
 export const ExactInParamsSchema = GeneralSwapParamsSchema.extend({
   mode: z.literal('ExactIn'),
-  amountIn: z.bigint(),
+  amountIn: z.bigint().nonnegative(),
 });
 
 export const ExactOutParamsSchema = GeneralSwapParamsSchema.extend({
   mode: z.literal('ExactOut'),
-  amountOut: z.bigint(),
+  amountOut: z.bigint().nonnegative(),
 });
 
 export const SwapParamsSchema = z
@@ -39,18 +39,6 @@ export const SwapParamsSchema = z
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Asset in and out must be different',
-      });
-    }
-    if (data.mode === 'ExactIn' && data.amountIn <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Amount in must be greater than 0',
-      });
-    }
-    if (data.mode === 'ExactOut' && data.amountOut <= 0) {
-      ctx.addIssue({
-        code: z.ZodIssueCode.custom,
-        message: 'Amount out must be greater than 0',
       });
     }
   })
