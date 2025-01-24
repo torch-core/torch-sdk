@@ -3,7 +3,6 @@ import { TorchSDK, WithdrawParams } from '../src';
 import { initialize } from './setup';
 import { PoolAssets } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
-import { SwapParams } from '../src/types/swap';
 import { JettonMaster, JettonWallet } from '@ton/ton';
 import {
   checkJettonBalDecrease,
@@ -13,6 +12,7 @@ import {
   checkTONBalIncrease,
 } from './helper/check';
 import { Pool } from '@torch-finance/dex-contract-wrapper';
+import { Asset } from '@torch-finance/core';
 
 describe('Withdraw Testcases', () => {
   // set timeout: 6 minutes
@@ -45,38 +45,11 @@ describe('Withdraw Testcases', () => {
   let senderQuaTONBalBefore: bigint;
   let senderHTONBalBefore: bigint;
 
-  async function swapImpactTriTON() {
-    const swapFluctuateParams: SwapParams = {
-      mode: 'ExactIn',
-      assetIn: PoolAssets.tsTONAsset,
-      assetOut: PoolAssets.stTONAsset,
-      amountIn: toNano('5'),
-    };
-    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
-    await send(sendFluctuateArgs);
-
-    // Reset balance
-    senderStTONBalBefore = await senderStTONWallet.getBalance();
-    senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-  }
-
-  async function swapImpactQuaTON() {
-    const swapFluctuateParams: SwapParams = {
-      mode: 'ExactIn',
-      assetIn: PoolAssets.triTONAsset,
-      assetOut: PoolAssets.hTONAsset,
-      amountIn: 1n * 10n ** 18n,
-    };
-    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
-    await send(sendFluctuateArgs);
-
-    // Reset balance
-    senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-    senderHTONBalBefore = await senderHTONWallet.getBalance();
-  }
-
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
+  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset) => Promise<void>;
+  let swapImpactQuaTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
+
   beforeAll(async () => {
     ({
       torchSDK,
@@ -93,6 +66,8 @@ describe('Withdraw Testcases', () => {
       tsTON,
       hTON,
       send,
+      swapImpactTriTON,
+      swapImpactQuaTON,
     } = await initialize());
 
     initBlockchainState = blockchain.snapshot();
@@ -241,6 +216,10 @@ describe('Withdraw Testcases', () => {
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
 
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
       await send(withdrawArgs);
 
       // Sender triTON balance should not be changed
@@ -269,6 +248,10 @@ describe('Withdraw Testcases', () => {
 
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
+
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
 
       await send(withdrawArgs);
 
@@ -379,6 +362,10 @@ describe('Withdraw Testcases', () => {
         // Someone swap to make the price fluctuate
         await swapImpactQuaTON();
 
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
+
         await send(withdrawArgs);
 
         // Sender QuaTON balance should not be changed
@@ -418,6 +405,10 @@ describe('Withdraw Testcases', () => {
         // Someone swap to make the price fluctuate
         await swapImpactTriTON();
 
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
         await send(withdrawArgs);
 
         // Sender QuaTON balance should be decreased
@@ -456,6 +447,113 @@ describe('Withdraw Testcases', () => {
 
         // Sender tsTON balance should be increased
         await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
+      });
+
+      it('should withdraw one and withdraw one with recipient', async () => {
+        // Build withdraw payload
+        const burnLpAmount = 1n * 10n ** 18n;
+        const recipient = await blockchain.treasury('recipient');
+        const withdrawParams: WithdrawParams = {
+          mode: 'Single',
+          pool: quaTONPool.address,
+          burnLpAmount,
+          queryId: 1n,
+          nextWithdraw: {
+            pool: triTONPool.address,
+            mode: 'Single',
+            withdrawAsset: PoolAssets.tsTONAsset,
+          },
+          recipient: recipient.address,
+        };
+
+        // Send withdraw
+        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
+        await send(withdrawArgs);
+
+        // Sender QuaTON balance should be decreased
+        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
+
+        // Recipient tsTON balance should be increased
+        const recipientTsTONWallet = blockchain.openContract(
+          JettonWallet.create(await tsTON.getWalletAddress(recipient.address)),
+        );
+        await checkJettonBalIncrease(recipientTsTONWallet, 0n);
+      });
+
+      it('should refund quaTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
+        // Build withdraw payload
+        const burnLpAmount = 1n * 10n ** 18n;
+        const withdrawParams: WithdrawParams = {
+          mode: 'Single',
+          pool: quaTONPool.address,
+          burnLpAmount,
+          queryId: 1n,
+          nextWithdraw: {
+            pool: triTONPool.address,
+            mode: 'Single',
+            withdrawAsset: PoolAssets.tsTONAsset,
+          },
+          slippageTolerance: 0.01,
+        };
+
+        // Send withdraw
+        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
+
+        // Someone swap to make the price fluctuate
+        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
+
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
+
+        await send(withdrawArgs);
+
+        // Sender QuaTON balance should not be changed
+        await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
+
+        // Sender hTON balance should not be changed
+        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
+
+        // Sender stTON balance should not be changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+      });
+
+      it('should refund triTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
+        // Build withdraw payload
+        const burnLpAmount = 1n * 10n ** 18n;
+        const withdrawParams: WithdrawParams = {
+          mode: 'Single',
+          pool: quaTONPool.address,
+          burnLpAmount,
+          queryId: 1n,
+          nextWithdraw: {
+            pool: triTONPool.address,
+            mode: 'Single',
+            withdrawAsset: PoolAssets.stTONAsset,
+          },
+          slippageTolerance: 0.01,
+        };
+
+        // Send withdraw
+        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
+
+        // Someone swap to make the price fluctuate
+        await swapImpactTriTON();
+
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+        await send(withdrawArgs);
+
+        // Sender QuaTON balance should be decreased
+        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
+
+        // Sender TriTON balance should be increased
+        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
+
+        // Sender stTON balance should be not changed
+        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
       });
     });
   });

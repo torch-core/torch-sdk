@@ -13,6 +13,7 @@ import {
 } from './helper/check';
 import { abs } from './helper/abs';
 import { Pool } from '@torch-finance/dex-contract-wrapper';
+import { Asset } from '@torch-finance/core';
 
 describe('Swap Testcases', () => {
   // set timeout: 6 minutes
@@ -46,6 +47,10 @@ describe('Swap Testcases', () => {
 
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
+
+  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset) => Promise<void>;
+  let swapImpactQuaTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
+
   beforeAll(async () => {
     ({
       torchSDK,
@@ -63,6 +68,8 @@ describe('Swap Testcases', () => {
       tsTON,
       hTON,
       send,
+      swapImpactTriTON,
+      swapImpactQuaTON,
     } = await initialize());
 
     initBlockchainState = blockchain.snapshot();
@@ -80,36 +87,6 @@ describe('Swap Testcases', () => {
     senderTriTONBalBefore = await senderTriTONWallet.getBalance();
     senderQuaTONBalBefore = await senderQuaTONWallet.getBalance();
   });
-
-  async function swapImpactTriTON() {
-    const swapFluctuateParams: SwapParams = {
-      mode: 'ExactIn',
-      assetIn: PoolAssets.tsTONAsset,
-      assetOut: PoolAssets.stTONAsset,
-      amountIn: toNano('0.5'),
-    };
-    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
-    await send(sendFluctuateArgs);
-
-    // Reset balance
-    senderStTONBalBefore = await senderStTONWallet.getBalance();
-    senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-  }
-
-  async function swapImpactQuaTON() {
-    const swapFluctuateParams: SwapParams = {
-      mode: 'ExactIn',
-      assetIn: PoolAssets.triTONAsset,
-      assetOut: PoolAssets.hTONAsset,
-      amountIn: 1n * 10n ** 18n,
-    };
-    const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
-    await send(sendFluctuateArgs);
-
-    // Reset balance
-    senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-    senderHTONBalBefore = await senderHTONWallet.getBalance();
-  }
 
   describe('Swap in TriTON Pool', () => {
     it('should swap tsTON to stTON (ExactIn + ExactOut)', async () => {
@@ -187,6 +164,10 @@ describe('Swap Testcases', () => {
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
 
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
       // Send swap
       const sendSlipageArgs = await torchSDK.getSwapPayload(sender, swapSlipageParams);
       await send(sendSlipageArgs);
@@ -212,6 +193,10 @@ describe('Swap Testcases', () => {
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
 
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
       // Send swap
       await send(sendArgs);
 
@@ -229,6 +214,10 @@ describe('Swap Testcases', () => {
 
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
+
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
 
       // Send swap
       const sendSlipageArgs = await torchSDK.getSwapPayload(sender, swapSlipageParams);
@@ -270,6 +259,10 @@ describe('Swap Testcases', () => {
 
       // Someone swap to make the price fluctuate
       await swapImpactTriTON();
+
+      // Reset balance
+      senderStTONBalBefore = await senderStTONWallet.getBalance();
+      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
 
       // Send swap
       const sendSlipageArgs = await torchSDK.getSwapPayload(sender, swapSlipageParams);
@@ -440,6 +433,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the first pool
         await swapImpactQuaTON();
 
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -470,6 +467,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the first pool
         await swapImpactTriTON();
 
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -496,6 +497,10 @@ describe('Swap Testcases', () => {
 
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
         await swapImpactQuaTON();
+
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
 
         // Send swap
         await send(sendArgs);
@@ -625,6 +630,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
         await swapImpactTriTON();
 
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -655,6 +664,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
         await swapImpactQuaTON();
 
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -681,6 +694,10 @@ describe('Swap Testcases', () => {
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
         await swapImpactTriTON();
+
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
 
         // Send swap
         await send(sendArgs);
@@ -810,6 +827,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
         await swapImpactQuaTON();
 
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -837,6 +858,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
         await swapImpactTriTON();
 
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -863,6 +888,10 @@ describe('Swap Testcases', () => {
 
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
         await swapImpactQuaTON();
+
+        // Reset balance
+        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+        senderHTONBalBefore = await senderHTONWallet.getBalance();
 
         // Send swap
         await send(sendArgs);
@@ -995,6 +1024,10 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
         await swapImpactTriTON();
 
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
         // Send swap
         await send(sendArgs);
 
@@ -1059,6 +1092,10 @@ describe('Swap Testcases', () => {
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
         await swapImpactTriTON();
+
+        // Reset balance
+        senderStTONBalBefore = await senderStTONWallet.getBalance();
+        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
 
         // Send swap
         await send(sendArgs);

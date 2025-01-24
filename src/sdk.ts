@@ -488,7 +488,8 @@ export class TorchSDK {
       if (parsedParams.nextWithdraw && nextPool) {
         const nextLpIndex = pool.assets.findIndex(({ asset }) => asset.jettonMaster?.equals(nextPool!.address));
         if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
-        const nextLpAmount = simulateResult.amountOuts[nextLpIndex];
+        const nextLpAmount =
+          parsedParams.mode === 'Single' ? simulateResult.amountOuts[0] : simulateResult.amountOuts[nextLpIndex];
         if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
         if (simulateResults.length < 2) throw new Error('Simulate withdraw result length must be greater than 1');
 
