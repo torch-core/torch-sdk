@@ -1,9 +1,9 @@
 import {
   DepositNext,
   Factory,
-  SimulateDepositResult,
+  SimulateSwapExactInResult,
+  SimulateSwapExactOutResult,
   SimulateSwapResult,
-  SimulateWithdrawResult,
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
@@ -22,6 +22,9 @@ import { Hop, HopAction, HopSchema } from './types/hop';
 import { buildSwapNext } from './utils/builder';
 import { Simulator } from './simulate';
 import { PoolRates } from './types/rates';
+import { SimulateSwapResponse } from './types/simulateSwap';
+import { SimulateDepositResponse } from './types/simulateDeposit';
+import { SimulateWithdrawResponse } from './types/simulateWithdraw';
 
 export type TorchSDKOptions = {
   indexerEndpoint?: string;
@@ -198,13 +201,14 @@ export class TorchSDK {
    */
   private async calculateSwapMinAmountOuts(
     params: SwapParams,
-    poolsRates: PoolRates,
+    poolsRates?: PoolRates,
   ): Promise<{
     amountIn: bigint;
+    amountOuts: bigint[];
     minAmountOuts: bigint[] | null;
+    rawSimulateResults: SimulateSwapResult[];
   }> {
     const parsedParams = SwapParamsSchema.parse(params);
-
     let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
 
     const amountOuts: bigint[] = [];
@@ -327,13 +331,37 @@ export class TorchSDK {
       throw new Error('Amount in must be greater than 0');
     }
 
-    return { amountIn, minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null };
+    return {
+      amountIn,
+      amountOuts,
+      minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null,
+      rawSimulateResults: simulateResults,
+    };
   }
 
   private calculateMinAmountOutBySlippage(amountOut: bigint, slippageTolerance: Decimal): bigint {
     const slippageMultiplier = new Decimal(1).minus(slippageTolerance.toNumber());
     const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
     return minAmountOut;
+  }
+
+  /**
+   * Calculates the execution price based on the amountIn and amountOut.
+   *
+   * This method converts the given amountIn and amountOut from BigInt to Decimal for precise calculation.
+   * It then calculates the execution price by dividing amountIn by amountOut.
+   *
+   * @param amountIn - The amount of asset being input into the transaction.
+   * @param amountOut - The amount of asset being output from the transaction.
+   * @returns The execution price as a Decimal value.
+   */
+  private calculateExecutionPrice(amountIn: bigint, amountOut: bigint): Decimal {
+    // Convert amounts to decimal for precise calculation
+    const amountInDecimal = new Decimal(amountIn.toString());
+    const amountOutDecimal = new Decimal(amountOut.toString());
+
+    // Calculate price as amountIn/amountOut
+    return amountInDecimal.div(amountOutDecimal);
   }
 
   /**
@@ -668,15 +696,158 @@ export class TorchSDK {
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 
-  async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
-    return await this.simulator.swap(params);
+  async simulateSwap(params: SwapParams): Promise<SimulateSwapResponse> {
+    const parsedParams = SwapParamsSchema.parse(params);
+    const { amountIn, amountOuts, minAmountOuts, rawSimulateResults } = await this.calculateSwapMinAmountOuts(params);
+
+    if (!rawSimulateResults.every((result) => result.mode === parsedParams.mode))
+      throw new Error('Simulate swap result mode must match swap mode');
+
+    if (parsedParams.mode === 'ExactIn') {
+      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      if (lastDetail.mode !== 'ExactIn') throw new Error('Last detail must be ExactIn');
+      return {
+        mode: 'ExactIn',
+        amountOut: amountOuts[0],
+        minAmountOut: minAmountOuts?.at(0),
+        details: rawSimulateResults as SimulateSwapExactInResult[],
+        executionPrice: this.calculateExecutionPrice(amountIn, amountOuts[0]),
+      };
+    } else {
+      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      if (lastDetail.mode !== 'ExactOut') throw new Error('Last detail must be ExactOut');
+      return {
+        mode: 'ExactOut',
+        amountIn: amountIn,
+        minAmountOut: minAmountOuts?.at(0),
+        details: rawSimulateResults as SimulateSwapExactOutResult[],
+        executionPrice: this.calculateExecutionPrice(amountIn, parsedParams.amountOut),
+      };
+    }
   }
 
-  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
-    return await this.simulator.deposit(params);
+  /**
+   * Simulates a deposit operation and returns detailed information about the expected outcome
+   *
+   * @param params - The deposit parameters
+   * @returns A promise that resolves to the simulation response containing LP token amounts and execution details
+   */
+  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResponse> {
+    const parsedParams = DepositParamsSchema.parse(params);
+
+    // Get pools and rates
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
+    );
+    const { poolsRates } = await this.getSignedRates(pools);
+
+    // Simulate the deposit
+    const simulateResults = await this.simulator.deposit(params, poolsRates);
+    if (simulateResults.length !== pools.length) {
+      throw new Error(
+        `Simulate deposit result length must match pools length: ${simulateResults.length} !== ${pools.length}`,
+      );
+    }
+
+    const lastSimulateResult = simulateResults[simulateResults.length - 1]!;
+
+    return {
+      lpTokenOut: lastSimulateResult.lpTokenOut,
+      lpTotalSupplyAfter: lastSimulateResult.lpTotalSupply,
+      minLpTokenOut: parsedParams.slippageTolerance
+        ? this.calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
+        : undefined,
+      details: simulateResults,
+    };
   }
 
-  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
-    return await this.simulator.withdraw(params);
+  /**
+   * Simulates a withdraw operation and returns detailed information about the expected outcome
+   *
+   * @param params - The withdraw parameters
+   * @returns A promise that resolves to the simulation response containing output amounts and execution details
+   */
+  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResponse> {
+    const parsedParams = new Withdraw(params);
+
+    // Get pools and rates
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
+    );
+
+    // Simulate the withdrawal
+    const simulateResults = await this.simulator.withdraw(params);
+    if (simulateResults.length !== pools.length) {
+      throw new Error(
+        `Simulate withdraw result length must match pools length: ${simulateResults.length} !== ${pools.length}`,
+      );
+    }
+    const [withdrawResult, nextWithdrawResult] = simulateResults;
+    const [pool, nextPool] = pools;
+
+    // Collect all amountOuts from all simulation results
+    let amountOuts: Allocation[] = [];
+    let minAmountOuts: Allocation[] | undefined;
+
+    // First withdraw
+    if (parsedParams.mode === 'Balanced') {
+      amountOuts = withdrawResult.amountOuts
+        .map((amountOut, i) => {
+          // If next withdraw is provided, skip base lp asset (nextPool.lpAsset)
+          if (parsedParams.nextWithdraw && pool.assets[i].asset.equals(nextPool.lpAsset.asset)) return;
+          return new Allocation({
+            asset: pool.assets[i].asset,
+            value: amountOut,
+          });
+        })
+        .filter((allocation): allocation is Allocation => allocation !== undefined);
+    } else {
+      if (withdrawResult.amountOuts.length !== 1) throw new Error('First withdraw result must have 1 amount out');
+      // If next withdraw is provided, skip base lp asset (nextPool.lpAsset) @0xthrow-unless: Check if this is correct
+      if (!parsedParams.nextWithdraw || !parsedParams.withdrawAsset?.equals(nextPool.lpAsset.asset)) {
+        amountOuts = Allocation.createAllocations([
+          { asset: parsedParams.withdrawAsset!, value: withdrawResult.amountOuts[0] },
+        ]);
+      }
+    }
+
+    // Next withdraw
+    if (parsedParams.nextWithdraw) {
+      if (parsedParams.mode === 'Balanced') {
+        amountOuts = amountOuts.concat(
+          nextWithdrawResult.amountOuts.map(
+            (amountOut, i) =>
+              new Allocation({
+                asset: nextPool.assets[i].asset,
+                value: amountOut,
+              }),
+          ),
+        );
+      } else {
+        if (nextWithdrawResult.amountOuts.length !== 1) throw new Error('Next withdraw result must have 1 amount out');
+        amountOuts = Allocation.createAllocations([
+          { asset: parsedParams.nextWithdraw.withdrawAsset!, value: nextWithdrawResult.amountOuts[0] },
+        ]);
+      }
+    }
+
+    // Create proper Allocation objects
+    amountOuts = Allocation.createAllocations(amountOuts);
+
+    // Calculate minAmountOuts if slippage tolerance is provided
+    if (parsedParams.slippageTolerance) {
+      minAmountOuts = Allocation.createAllocations(
+        amountOuts.map((allocation) => ({
+          asset: allocation.asset,
+          value: this.calculateMinAmountOutBySlippage(allocation.value, parsedParams.slippageTolerance!),
+        })),
+      );
+    }
+
+    return {
+      amountOuts,
+      minAmountOuts,
+      details: simulateResults,
+    };
   }
 }
