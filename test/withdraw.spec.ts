@@ -54,7 +54,7 @@ describe('Withdraw Testcases', () => {
 
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
-  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset) => Promise<void>;
+  let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
   let swapImpactQuaTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
 
   beforeAll(async () => {
@@ -253,7 +253,7 @@ describe('Withdraw Testcases', () => {
       const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
       // Someone swap to make the price fluctuate
-      await swapImpactTriTON();
+      await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
       // Reset balance
       senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -530,7 +530,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -667,7 +667,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
