@@ -4,6 +4,7 @@ import { MinAmountOut } from '../common/zod';
 import { QueryId } from '../common/zod';
 import { SlippageSchema } from '../common/slippage';
 import { Cell } from '@ton/core';
+import Decimal from 'decimal.js';
 
 const GeneralSwapParamsSchema = z.object({
   assetIn: z.instanceof(Asset),
@@ -11,7 +12,7 @@ const GeneralSwapParamsSchema = z.object({
   routes: z.array(AddressSchema).optional(),
   queryId: QueryId.optional().transform((v) => v ?? 0n),
   deadline: z.bigint().optional(),
-  slippageTolerance: SlippageSchema.optional(),
+  slippageTolerance: z.union([SlippageSchema, z.instanceof(Decimal)]).optional(),
   minAmountOut: MinAmountOut.optional(),
   recipient: AddressSchema.optional(),
   fulfillPayload: z.instanceof(Cell).optional(),

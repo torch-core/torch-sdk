@@ -47,6 +47,7 @@ export class TorchSDK {
 
   constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
+    // TODO: change to mainnet factory address
     const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
     const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
@@ -55,6 +56,7 @@ export class TorchSDK {
     this.tonClient =
       options?.tonClient ||
       new TonClient4({
+        // TODO: change to mainnet endpoint
         endpoint: 'https://testnet-v4.tonhubapi.com',
       });
     this.api = new TorchAPI({
