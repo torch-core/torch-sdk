@@ -1,30 +1,52 @@
-import { Address } from '@ton/core';
-import { Asset, SignedRate } from '@torch-finance/core';
-import { PoolRawResponse, PoolResponse, PoolResponseSchema } from './types/pool';
-import { Hop, HopRaw, HopSchema } from '../types/hop';
-import { LpAccountRawResponse, LpAccountResponse, LpAccountResponseSchema } from './types/lp-account';
+// External Libs
 import axios, { AxiosInstance } from 'axios';
-import { AssetRawResponse, AssetResponse, AssetResponseSchema } from './types/asset';
-import { SignedRateResponse } from './types/signedRate';
+import { Address } from '@ton/core';
+// Torch Libs
+import { Asset, SignedRate } from '@torch-finance/core';
 import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
-import { SwapParams, SwapParamsSchema } from '../types/swap';
-import { DepositParams, DepositParamsSchema } from '../types/deposit';
-import { WithdrawParams, WithdrawParamsSchema } from '../types/withdraw';
-import { GqlQuery, GraphQLResponse } from './types/graphql';
+// Internal Types
+import { Hop, HopRaw, HopSchema } from '../types/common';
+import {
+  SwapParams,
+  SwapParamsSchema,
+  DepositParams,
+  DepositParamsSchema,
+  WithdrawParams,
+  WithdrawParamsSchema,
+} from '../types/sdk';
+import {
+  // Asset
+  AssetRawResponse,
+  AssetResponse,
+  AssetResponseSchema,
+  // Signed Rate
+  SignedRateResponse,
+  // Pool
+  PoolRawResponse,
+  PoolResponse,
+  PoolResponseSchema,
+  // Lp Account
+  LpAccountRawResponse,
+  LpAccountResponse,
+  LpAccountResponseSchema,
+  // GraphQL
+  GqlQuery,
+  GraphQLResponse,
+} from '../types/api';
 
 export type TorchAPIOptions = {
-  indexerEndpoint: string;
+  apiEndpoint: string;
   oracleEndpoint: string;
 };
 
 export class TorchAPI {
-  private readonly indexer: AxiosInstance;
+  private readonly api: AxiosInstance;
   private readonly oracle: AxiosInstance;
 
   constructor(readonly options: TorchAPIOptions) {
-    this.indexer = axios.create({
-      baseURL: options.indexerEndpoint,
+    this.api = axios.create({
+      baseURL: options.apiEndpoint,
       headers: {
         'Content-Type': 'application/json',
       },
@@ -38,14 +60,14 @@ export class TorchAPI {
   }
 
   async getPools(): Promise<PoolResponse[]> {
-    const { data } = await this.indexer.post<GraphQLResponse<{ pools: PoolRawResponse[] }>>('/graphql', {
+    const { data } = await this.api.post<GraphQLResponse<{ pools: PoolRawResponse[] }>>('/graphql', {
       query: GqlQuery.SDK_SYNC_POOLS,
     });
     return data.data.pools.map((pool) => PoolResponseSchema.parse(pool));
   }
 
   async getPoolStates(): Promise<SimulatorState[]> {
-    const { data } = await this.indexer.post<{ pools: SimulatorState[] }>('/graphql', {
+    const { data } = await this.api.post<{ pools: SimulatorState[] }>('/graphql', {
       query: `
           query {
             pools {
@@ -58,7 +80,7 @@ export class TorchAPI {
   }
 
   async getExchangableAssets(assetIn?: Asset): Promise<AssetResponse[]> {
-    const { data } = await this.indexer.post<{ tokens: AssetRawResponse[] }>('/graphql', {
+    const { data } = await this.api.post<{ tokens: AssetRawResponse[] }>('/graphql', {
       query: `
           query {
             assets(assetInId: $assetInId) {
@@ -74,7 +96,7 @@ export class TorchAPI {
   }
 
   async getActiveLpAccounts(lpProvider: Address): Promise<LpAccountResponse[]> {
-    const { data } = await this.indexer.get<{ lpAccounts: LpAccountRawResponse[] }>('/lp-accounts/active', {
+    const { data } = await this.api.get<{ lpAccounts: LpAccountRawResponse[] }>('/lp-accounts/active', {
       params: {
         lpProvider: lpProvider.toString(),
       },
@@ -92,7 +114,7 @@ export class TorchAPI {
   }
 
   async getHops(assetIn: Asset, assetOut: Asset): Promise<Hop[]> {
-    const response = await this.indexer.get<HopRaw[]>('/hops', {
+    const response = await this.api.get<HopRaw[]>('/hops', {
       params: {
         assetIn: assetIn.ID,
         assetOut: assetOut.ID,
@@ -113,7 +135,7 @@ export class TorchAPI {
             mode: 'ExactOut',
             amountOut: parsedParams.amountOut.toString(),
           };
-    const { data } = await this.indexer.post<
+    const { data } = await this.api.post<
       {
         mode: 'ExactIn' | 'ExactOut';
         amountOut?: string;
@@ -145,7 +167,7 @@ export class TorchAPI {
 
   async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
     const parsedParams = DepositParamsSchema.parse(params);
-    const { data } = await this.indexer.post<
+    const { data } = await this.api.post<
       {
         lpTokenOut: string;
         virtualPriceBefore: string;
@@ -180,7 +202,7 @@ export class TorchAPI {
     } else if (parsedParams.mode === 'Single') {
       withdrawAsset = parsedParams.withdrawAsset;
     }
-    const { data } = await this.indexer.post<
+    const { data } = await this.api.post<
       {
         amountOuts: string[];
         virtualPriceBefore: string;

@@ -1,3 +1,8 @@
+// External Libs
+import { Address, OpenedContract, SenderArguments } from '@ton/core';
+import { TonClient4 } from '@ton/ton';
+import Decimal from 'decimal.js';
+// Torch Libs
 import {
   DepositNext,
   Factory,
@@ -7,30 +12,29 @@ import {
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
-import { TorchAPI } from './api';
-import { Address, OpenedContract, SenderArguments } from '@ton/core';
-import { TonClient4 } from '@ton/ton';
-import { DepositParams } from './types/deposit';
-import { DepositParamsSchema } from './types/deposit';
-import { PoolResponse } from './api/types/pool';
-import Decimal from 'decimal.js';
 import { Allocation, Asset, normalize, SignedRate } from '@torch-finance/core';
-import { WithdrawParams, WithdrawParamsSchema } from './types/withdraw';
-import { ExactInParamsSchema, SwapParamsSchema } from './types/swap';
-import { SwapParams } from './types/swap';
-import { Hop, HopAction, HopSchema } from './types/hop';
-import { buildSwapNext } from './utils/builder';
-import { Simulator } from './simulate';
-import { PoolRates } from './types/rates';
-import { SimulateSwapResponse } from './types/simulateSwap';
-import { SimulateDepositResponse } from './types/simulateDeposit';
-import { SimulateWithdrawResponse } from './types/simulateWithdraw';
-import { generateQueryId } from './utils/helper';
+// Internal Types
+import { PoolResponse } from '../types/api/pool';
+import {
+  ExactInParamsSchema,
+  SwapParamsSchema,
+  SwapParams,
+  WithdrawParams,
+  WithdrawParamsSchema,
+  DepositParams,
+  DepositParamsSchema,
+} from '../types/sdk';
+import { Hop, HopAction, HopSchema, PoolRates } from '../types/common';
+import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse } from '../types/simulator';
+
+import { generateQueryId, buildSwapNext } from '../utils';
+import { Simulator } from './simulator';
+import { TorchAPI } from './api';
 
 export type TorchSDKOptions = {
-  indexerEndpoint?: string;
+  apiEndpoint?: string;
   oracleEndpoint?: string;
-  client?: TonClient4;
+  tonClient?: TonClient4;
   factoryAddress?: Address;
 };
 
@@ -44,17 +48,17 @@ export class TorchSDK {
   constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
     const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
-    const indexerEndpoint = options?.indexerEndpoint || 'https://api.torch.finance';
+    const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
 
     // Intialization
     this.tonClient =
-      options?.client ||
+      options?.tonClient ||
       new TonClient4({
         endpoint: 'https://testnet-v4.tonhubapi.com',
       });
     this.api = new TorchAPI({
-      indexerEndpoint,
+      apiEndpoint: indexerEndpoint,
       oracleEndpoint,
     });
     this.simulator = new Simulator({
@@ -413,6 +417,7 @@ export class TorchSDK {
     let nextMinAmountOut: bigint | null = null;
     if (parsedParams.slippageTolerance) {
       const simulateResults = await this.simulator.deposit(params, poolsRates);
+
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
 

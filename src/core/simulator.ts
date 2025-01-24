@@ -1,11 +1,10 @@
-import { SimulateWithdrawResult, SimulateSwapResult, SimulateDepositResult } from '@torch-finance/dex-contract-wrapper';
 import { TonClient4 } from '@ton/ton';
+import { SimulateWithdrawResult, SimulateSwapResult, SimulateDepositResult } from '@torch-finance/dex-contract-wrapper';
+import { SwapParams, WithdrawParams, DepositParams } from '../types/sdk';
+import { PoolRates } from '../types/common';
 import { TorchAPI } from './api';
-import { SwapParams } from './types/swap';
-import { WithdrawParams } from './types/withdraw';
-import { DepositParams } from './types/deposit';
-import { PoolRates } from './types/rates';
-interface SimulatorConfig {
+
+export interface SimulatorConfig {
   torchAPI: TorchAPI;
   tonClient: TonClient4;
 }

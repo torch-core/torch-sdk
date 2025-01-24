@@ -1,8 +1,8 @@
 import { z } from 'zod';
 import { Asset, AddressSchema } from '@torch-finance/core';
-import { MinAmountOut } from './common';
-import { QueryId } from './common';
-import { SlippageSchema } from './slippage';
+import { MinAmountOut } from '../common/zod';
+import { QueryId } from '../common/zod';
+import { SlippageSchema } from '../common/slippage';
 import { Cell } from '@ton/core';
 
 const GeneralSwapParamsSchema = z.object({

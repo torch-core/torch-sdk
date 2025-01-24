@@ -1,7 +1,7 @@
-import { SlippageSchema } from './slippage';
+import { SlippageSchema } from '../common/slippage';
 import { AddressSchema, Asset, AssetSchema } from '@torch-finance/core';
 import { z } from 'zod';
-import { BigIntSchema, QueryId } from './common';
+import { BigIntSchema, QueryId } from '../common/zod';
 
 const SingleWithdrawModeSchema = z.literal('Single');
 const BalancedWithdrawModeSchema = z.literal('Balanced');

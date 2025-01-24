@@ -1,7 +1,8 @@
 import { DepositNext, SwapNext, WithdrawNext } from '@torch-finance/dex-contract-wrapper';
-import { Hop } from '../types/hop';
-import { PoolType } from '../api/types/pool';
 import { Allocation, Asset } from '@torch-finance/core';
+
+import { Hop } from '../types/common';
+import { PoolType } from '../types/api';
 
 /**
  * Build the next operation in the transaction sequence

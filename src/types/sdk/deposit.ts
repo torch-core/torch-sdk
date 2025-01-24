@@ -1,8 +1,7 @@
-import { SlippageSchema } from './slippage';
-import { QueryId } from './common';
 import { z } from 'zod';
 import { AddressSchema, Allocation, AllocationSchema } from '@torch-finance/core';
 import { Cell } from '@ton/core';
+import { SlippageSchema, QueryId } from '../common';
 
 const DepositBaseSchema = z.object({
   pool: AddressSchema,
