@@ -86,14 +86,31 @@ export class TorchSDK {
     this.cachedPools = await this.api.getPools();
   }
 
-  // Get pool data by addresses
+  /**
+   * Retrieves pool data by addresses.
+   *
+   * Optimized to minimize redundant operations and avoid unnecessary API calls.
+   * If any requested pool is missing from the cache, it synchronizes with the API first.
+   *
+   * @param addresses Array of `Address` objects to fetch pool data for.
+   * @returns A promise that resolves to an array of `PoolResponse` objects.
+   */
   private async getPools(addresses: Address[]): Promise<PoolResponse[]> {
-    const missingAddresses = addresses.filter((address) => !this.cachedPools.some((p) => p.address.equals(address)));
+    // Use a Set for efficient lookups of cached pool addresses
+    const cachedAddressesSet = new Set(this.cachedPools.map((p) => p.address.toString()));
 
+    // Filter out addresses missing in the cache
+    const missingAddresses = addresses.filter((address) => !cachedAddressesSet.has(address.toString()));
+
+    // Sync with the API only if there are missing addresses
     if (missingAddresses.length > 0) {
       await this.sync();
+
+      // Update the cachedAddressesSet after syncing
+      this.cachedPools.forEach((pool) => cachedAddressesSet.add(pool.address.toString()));
     }
 
+    // Retrieve pool data from the cache
     const poolInfos = addresses.map((address) => {
       const pool = this.cachedPools.find((p) => p.address.equals(address));
       if (!pool) {
@@ -131,36 +148,44 @@ export class TorchSDK {
     let currentAssetIn = assetIn;
     const hops: Hop[] = [];
 
-    for (const [i, currentPool] of routes.entries()) {
-      const currentPoolAssets = [...currentPool.assets.map(({ asset }) => asset), Asset.jetton(currentPool.address)];
-      const currentPoolLpAsset = Asset.jetton(currentPool.address);
+    const poolAssetsCache = routes.map((pool) => ({
+      assets: new Set(pool.assets.map(({ asset }) => asset)),
+      lpAsset: Asset.jetton(pool.address),
+    }));
+
+    for (let i = 0; i < routes.length; i++) {
+      const currentPool = routes[i];
+      const currentPoolData = poolAssetsCache[i];
+      const currentPoolAssets = [...currentPoolData.assets, currentPoolData.lpAsset];
+      const currentPoolLpAsset = currentPoolData.lpAsset;
 
       if (i < routes.length - 1) {
-        const nextPool = routes[i + 1]!;
-        const nextPoolAssets = [...nextPool.assets.map(({ asset }) => asset), Asset.jetton(nextPool.address)];
+        const nextPoolData = poolAssetsCache[i + 1];
+        const nextPoolAssets = [...nextPoolData.assets, nextPoolData.lpAsset];
 
-        const currentPoolPossibleAssets = currentPoolAssets.filter((asset) => !asset.equals(currentAssetIn));
+        let selectedAssetOut: Asset | null = null;
+        for (const asset of currentPoolAssets) {
+          if (!asset.equals(currentAssetIn) && nextPoolAssets.some((nextAsset) => nextAsset.equals(asset))) {
+            selectedAssetOut = asset;
+            break;
+          }
+        }
 
-        const intersection = currentPoolPossibleAssets.filter((asset) =>
-          nextPoolAssets.some((nextAsset) => nextAsset.equals(asset)),
-        );
-
-        if (intersection.length === 0) {
+        if (!selectedAssetOut) {
           throw new Error('No valid operation found to connect pools');
         }
 
-        const selectedAssetOut = intersection[0];
-        const action = calHopAction(currentPool, currentAssetIn, selectedAssetOut!, currentPoolLpAsset);
+        const action = calHopAction(currentPool, currentAssetIn, selectedAssetOut, currentPoolLpAsset);
 
         hops.push(
           HopSchema.parse({
             action: action as HopAction,
             pool: currentPool,
             assetIn: currentAssetIn,
-            assetOut: selectedAssetOut!,
+            assetOut: selectedAssetOut,
           }),
         );
-        currentAssetIn = selectedAssetOut!;
+        currentAssetIn = selectedAssetOut;
       } else {
         const action = calHopAction(currentPool, currentAssetIn, assetOut, currentPoolLpAsset);
 
@@ -437,6 +462,18 @@ export class TorchSDK {
     return senderArgs;
   }
 
+  /**
+   * Generates the payload required to perform a token withdraw operation.
+   *
+   * This function parses the withdraw parameters, ensures pool data is synchronized,
+   * calculates the minimum amount of assets out if slippage tolerance is provided,
+   * retrieves necessary pool information, and generates payloads for withdraw execution.
+   * WithdrawAsset and nextWithdraw is mutually exclusive in Single Withdraw mode.
+   *
+   * @param {Address} sender - The address of the sender initiating the withdraw.
+   * @param {WithdrawParams} params - The parameters for the withdraw, including the target pool, amounts, and optional next withdraw information.
+   * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of withdraw payloads, ready to be signed and executed.
+   */
   async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
     const parsedParams = WithdrawParamsSchema.parse(params);
 
@@ -579,6 +616,16 @@ export class TorchSDK {
     return senderArgs;
   }
 
+  /**
+   * Generates the payload required to perform a swap operation.
+   *
+   * This function parses the swap parameters, ensures pool data is synchronized,
+   * calculates the minimum amount of assets out if slippage tolerance is provided,
+   *
+   * @param {Address} sender - The address of the sender initiating the swap.
+   * @param {SwapParams} params - The parameters for the swap, including the target pool, amounts, and optional next swap information.
+   * @returns {Promise<SenderArguments>} - A promise that resolves to the swap payload, ready to be signed and executed.
+   */
   async getSwapPayload(sender: Address, params: SwapParams): Promise<SenderArguments> {
     const parsedParams = SwapParamsSchema.parse(params);
     // Get hops
@@ -673,6 +720,12 @@ export class TorchSDK {
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 
+  /**
+   * Simulates a swap operation and returns detailed information about the expected outcome
+   *
+   * @param params - The swap parameters
+   * @returns A promise that resolves to the simulation response containing output amounts and execution details
+   */
   async simulateSwap(params: SwapParams): Promise<SimulateSwapResponse> {
     const parsedParams = SwapParamsSchema.parse(params);
 
