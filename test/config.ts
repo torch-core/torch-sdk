@@ -20,6 +20,6 @@ export abstract class PoolAssets {
 }
 
 export abstract class MockSettings {
-  static readonly emulateBlockSeq = 27350396;
+  static readonly emulateBlockSeq = 27423640;
   static readonly sender = Address.parse('0QAHg-2Oy8Mc2BfENEaBcoDNXvHCu7mc28KkPIks8ZVqwmzg');
 }

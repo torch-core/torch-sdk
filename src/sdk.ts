@@ -413,7 +413,6 @@ export class TorchSDK {
     let nextMinAmountOut: bigint | null = null;
     if (parsedParams.slippageTolerance) {
       const simulateResults = await this.simulator.deposit(params, poolsRates);
-
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
 
