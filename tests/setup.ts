@@ -14,7 +14,7 @@ export const initialize = async () => {
   });
   const torchSDK = new TorchSDK({
     factoryAddress: FactoryConfig.factoryAddress,
-    apiEndpoint: 'http://localhost:3001',
+    apiEndpoint: 'https://testnet-api.torch.finance',
     oracleEndpoint: 'https://testnet-oracle.torch.finance/',
   });
 
