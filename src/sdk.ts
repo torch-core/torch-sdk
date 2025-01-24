@@ -411,10 +411,8 @@ export class TorchSDK {
     // Calculate minAmountOut, nextMinAmountOut for the current pool and the next pool
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
-    console.log('parsedParams.slippageTolerance', parsedParams.slippageTolerance);
     if (parsedParams.slippageTolerance) {
       const simulateResults = await this.simulator.deposit(params, poolsRates);
-      console.log('simulateResults in deposit', simulateResults);
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
 
@@ -433,9 +431,6 @@ export class TorchSDK {
         );
       }
     }
-
-    console.log('minAmountOut in deposit', minAmountOut);
-    console.log('nextMinAmountOut in deposit', nextMinAmountOut);
 
     const senderArgs = await this.factory.getDepositPayload(sender, {
       queryId: parsedParams.queryId || 0n,
