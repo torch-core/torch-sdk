@@ -37,15 +37,21 @@ const SingleWithdrawBaseSchema = BaseWithdrawSchema.extend({
 });
 
 // Single Withdraw Variant 1: With `withdrawAsset` and no `nextWithdraw`
-const SingleWithdrawNoNextSchema = SingleWithdrawBaseSchema.extend({
-  withdrawAsset: z.union([z.instanceof(Asset), AssetSchema.transform((v) => new Asset(v))]),
-  nextWithdraw: z.undefined(),
-});
+const SingleWithdrawNoNextSchema = SingleWithdrawBaseSchema.merge(
+  z.object({
+    withdrawAsset: z.union([z.instanceof(Asset), AssetSchema.transform((v) => new Asset(v))]),
+    nextWithdraw: z.undefined(),
+  }),
+);
 
 // Single Withdraw Variant 2: With `nextWithdraw` and no `withdrawAsset`
-const SingleWithdrawWithNextSchema = SingleWithdrawBaseSchema.extend({
-  nextWithdraw: NextWithdrawSchema,
-  withdrawAsset: z.undefined(),
+const SingleWithdrawWithNextSchema = SingleWithdrawBaseSchema.merge(
+  z.object({
+    nextWithdraw: NextWithdrawSchema,
+    withdrawAsset: z.undefined(),
+  }),
+).omit({
+  withdrawAsset: true,
 });
 
 // Combine Single Withdraw Variants
@@ -86,5 +92,5 @@ export const WithdrawParamsSchema = z
     };
   });
 
-export type WithdrawParams = z.infer<typeof WithdrawParamsSchema>;
+export type WithdrawParams = z.input<typeof WithdrawParamsSchema>;
 export type ParsedWithdrawParams = z.infer<typeof WithdrawParamsSchema>;

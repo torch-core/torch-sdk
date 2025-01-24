@@ -444,7 +444,8 @@ export class TorchSDK {
     // Get minAmountOuts if slippageTolerance is provided
     let minAmountOuts: Allocation[] | null = null;
     let nextMinAmountOuts: Allocation[] | null = null;
-    let withdrawAsset: Asset | undefined = parsedParams.mode === 'Single' ? parsedParams.withdrawAsset : undefined;
+    let withdrawAsset: Asset | undefined =
+      parsedParams.mode === 'Single' && !parsedParams.nextWithdraw ? parsedParams.withdrawAsset : undefined;
 
     // Validate next withdraw requirements
     if (parsedParams.nextWithdraw) {
@@ -480,7 +481,7 @@ export class TorchSDK {
       if (parsedParams.mode === 'Single') {
         minAmountOuts = Allocation.createAllocations([
           {
-            asset: parsedParams.withdrawAsset!,
+            asset: withdrawAsset!,
             value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
           },
         ]);
@@ -534,7 +535,7 @@ export class TorchSDK {
     }
 
     const senderArgs = await this.factory.getWithdrawPayload(sender, {
-      queryId: params.queryId || (await generateQueryId()),
+      queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
       signedRate: signedRate,
