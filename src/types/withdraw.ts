@@ -10,7 +10,7 @@ interface BaseWithdraw {
   burnLpAmount: bigint;
   queryId: bigint;
   recipient?: z.input<typeof AddressSchema>;
-  slippageTolerance?: Slippage;
+  slippageTolerance?: z.input<typeof SlippageSchema>;
   minAmountOuts?: Allocation | Allocation[];
   extraPayload?: null; // TODO: implement extraPayload when referral is implemented
 }

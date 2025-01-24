@@ -214,7 +214,7 @@ export class TorchSDK {
      * Simulate swap to get the exact output amounts
      */
     const simulateResults = await this.simulator.swap(params, poolsRates);
-    console.log('simulateResults', simulateResults);
+    console.log('simulateResults in calculateSwapMinAmountOuts', simulateResults);
 
     if (simulateResults.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -260,8 +260,7 @@ export class TorchSDK {
      */
     if (parsedParams.slippageTolerance) {
       for (const amountOut of amountOuts) {
-        const slippageMultiplier = new Decimal(1).minus(parsedParams.slippageTolerance.toNumber());
-        const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
+        const minAmountOut = this.calculateMinAmountOutBySlippage(amountOut, parsedParams.slippageTolerance);
         minAmountOuts.push(minAmountOut);
       }
     }
@@ -329,6 +328,12 @@ export class TorchSDK {
     }
 
     return { amountIn, minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null };
+  }
+
+  private calculateMinAmountOutBySlippage(amountOut: bigint, slippageTolerance: Decimal): bigint {
+    const slippageMultiplier = new Decimal(1).minus(slippageTolerance.toNumber());
+    const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
+    return minAmountOut;
   }
 
   /**
@@ -448,10 +453,10 @@ export class TorchSDK {
     }
 
     // Calculate minAmountOuts
+    console.log('parsedParams.slippageTolerance', parsedParams.slippageTolerance);
     if (parsedParams.slippageTolerance) {
-      console.log('params', params);
       const simulateResults = await this.simulator.withdraw(params, poolsRates);
-      console.log('simulateResults', simulateResults);
+      console.log('simulateResults in slippage', simulateResults);
       if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
       const simulateResult = simulateResults[0]!;
 
@@ -461,12 +466,24 @@ export class TorchSDK {
       if (parsedParams.mode === 'Single' && simulateResult.amountOuts.length !== 1) {
         throw new Error('In single mode, amount out length must be 1');
       }
-      minAmountOuts = Allocation.createAllocations(
-        pool.assets.map(({ asset }, i) => ({
-          asset,
-          value: simulateResult.amountOuts[i]!,
-        })),
-      );
+
+      // Calculate minAmountOuts based on on mode
+      if (parsedParams.mode === 'Balanced') {
+        minAmountOuts = Allocation.createAllocations(
+          pool.assets.map(({ asset }, i) => ({
+            asset,
+            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
+          })),
+        );
+      }
+      if (parsedParams.mode === 'Single') {
+        minAmountOuts = Allocation.createAllocations([
+          {
+            asset: parsedParams.withdrawAsset!,
+            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
+          },
+        ]);
+      }
 
       if (parsedParams.nextWithdraw && nextPool) {
         const nextLpIndex = pool.assets.findIndex(({ asset }) => asset.jettonMaster?.equals(nextPool!.address));
@@ -484,16 +501,34 @@ export class TorchSDK {
           throw new Error('In single mode, amount out length must be 1');
         }
 
-        nextMinAmountOuts = nextPool
-          ? Allocation.createAllocations(
-              nextPool.assets.map(({ asset }, i) => ({
-                asset,
-                value: nextSimulateResult.amountOuts[i]!,
-              })),
-            )
-          : null;
+        // Calculate nextMinAmountOuts based on on mode
+        if (parsedParams.mode === 'Balanced') {
+          nextMinAmountOuts = Allocation.createAllocations(
+            nextPool.assets.map(({ asset }, i) => ({
+              asset,
+              value: this.calculateMinAmountOutBySlippage(
+                nextSimulateResult.amountOuts[i]!,
+                parsedParams.slippageTolerance!,
+              ),
+            })),
+          );
+        }
+        if (parsedParams.mode === 'Single') {
+          nextMinAmountOuts = Allocation.createAllocations([
+            {
+              asset: parsedParams.withdrawAsset!,
+              value: this.calculateMinAmountOutBySlippage(
+                nextSimulateResult.amountOuts[0]!,
+                parsedParams.slippageTolerance!,
+              ),
+            },
+          ]);
+        }
       }
     }
+
+    console.log('minAmounts after slippage', minAmountOuts);
+    console.log('nextMinAmounts after slippage', nextMinAmountOuts);
 
     const senderArgs = await this.factory.getWithdrawPayload(sender, {
       queryId: params.queryId,
