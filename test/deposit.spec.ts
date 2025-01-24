@@ -192,7 +192,7 @@ describe('Deposit Testcases', () => {
       await checkJettonBalIncrease(senderQuaTONWallet, senderQuaTONBalBefore);
 
       // QuaTON Diff
-      console.log('diff', (await senderQuaTONWallet.getBalance()) - senderQuaTONBalBefore);
+      // console.log('diff', (await senderQuaTONWallet.getBalance()) - senderQuaTONBalBefore);
     });
 
     describe('With Meta Asset', () => {

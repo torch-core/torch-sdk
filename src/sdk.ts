@@ -219,7 +219,6 @@ export class TorchSDK {
      * Simulate swap to get the exact output amounts
      */
     const simulateResults = await this.simulator.swap(params, poolsRates);
-    console.log('simulateResults in calculateSwapMinAmountOuts', simulateResults);
 
     if (simulateResults.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -310,8 +309,6 @@ export class TorchSDK {
       }
     }
 
-    console.log('minAmountOuts After', minAmountOuts);
-
     // Validate amountOuts
     if (amountOuts.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -354,12 +351,15 @@ export class TorchSDK {
    *
    * @param amountIn - The amount of asset being input into the transaction.
    * @param amountOut - The amount of asset being output from the transaction.
-   * @returns The execution price as a Decimal value.
+   * @returns The execution price as a Decimal value. (1 amountIn = amountOut amountOut)
    */
-  private calculateExecutionPrice(amountIn: bigint, amountOut: bigint): Decimal {
+  private calculateExecutionPrice(
+    tokenIn: { amount: bigint; decimals: number },
+    tokenOut: { amount: bigint; decimals: number },
+  ): Decimal {
     // Convert amounts to decimal for precise calculation
-    const amountInDecimal = new Decimal(amountIn.toString());
-    const amountOutDecimal = new Decimal(amountOut.toString());
+    const amountInDecimal = new Decimal(tokenIn.amount.toString()).div(10 ** tokenIn.decimals);
+    const amountOutDecimal = new Decimal(tokenOut.amount.toString()).div(10 ** tokenOut.decimals);
 
     // Calculate price as amountIn/amountOut
     return amountInDecimal.div(amountOutDecimal);
@@ -416,8 +416,6 @@ export class TorchSDK {
 
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
-
-      console.log('simulateResult', simulateResult);
 
       minAmountOut = BigInt(
         new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
@@ -697,6 +695,27 @@ export class TorchSDK {
 
   async simulateSwap(params: SwapParams): Promise<SimulateSwapResponse> {
     const parsedParams = SwapParamsSchema.parse(params);
+
+    // Get hops
+    let hops: Hop[] = [];
+    if (parsedParams.routes && parsedParams.routes.length > 0) {
+      const pools = await this.getPools(parsedParams.routes);
+      hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
+    } else {
+      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
+      params.routes = hops.map((hop) => hop.pool.address);
+      parsedParams.routes = hops.map((hop) => hop.pool.address);
+    }
+
+    // Get inDecimals, outDecimals
+    const inDecimals = hops[0].pool.assets.find(({ asset }) => asset.equals(parsedParams.assetIn))?.decimals;
+    const outDecimals = hops[hops.length - 1].pool.assets.find(({ asset }) =>
+      asset.equals(parsedParams.assetOut),
+    )?.decimals;
+
+    if (!inDecimals || !outDecimals) throw new Error('InDecimals or OutDecimals not found');
+
+    // Calculate minAmountOuts
     const { amountIn, amountOuts, minAmountOuts, rawSimulateResults } = await this.calculateSwapMinAmountOuts(params);
 
     if (!rawSimulateResults.every((result) => result.mode === parsedParams.mode))
@@ -710,7 +729,10 @@ export class TorchSDK {
         amountOut: amountOuts[0],
         minAmountOut: minAmountOuts?.at(0),
         details: rawSimulateResults as SimulateSwapExactInResult[],
-        executionPrice: this.calculateExecutionPrice(amountIn, amountOuts[0]),
+        executionPrice: this.calculateExecutionPrice(
+          { amount: amountIn, decimals: inDecimals },
+          { amount: amountOuts[0], decimals: outDecimals },
+        ),
       };
     } else {
       const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
@@ -720,7 +742,10 @@ export class TorchSDK {
         amountIn: amountIn,
         minAmountOut: minAmountOuts?.at(0),
         details: rawSimulateResults as SimulateSwapExactOutResult[],
-        executionPrice: this.calculateExecutionPrice(amountIn, parsedParams.amountOut),
+        executionPrice: this.calculateExecutionPrice(
+          { amount: amountIn, decimals: inDecimals },
+          { amount: parsedParams.amountOut, decimals: outDecimals },
+        ),
       };
     }
   }
@@ -738,10 +763,9 @@ export class TorchSDK {
     const pools = await this.getPools(
       [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
     );
-    const { poolsRates } = await this.getSignedRates(pools);
 
     // Simulate the deposit
-    const simulateResults = await this.simulator.deposit(params, poolsRates);
+    const simulateResults = await this.simulator.deposit(params);
     if (simulateResults.length !== pools.length) {
       throw new Error(
         `Simulate deposit result length must match pools length: ${simulateResults.length} !== ${pools.length}`,
