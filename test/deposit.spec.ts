@@ -67,7 +67,7 @@ describe('Deposit Testcases', () => {
     senderQuaTONBalBefore = await senderQuaTONWallet.getBalance();
   });
 
-  describe('TriTON Pool', () => {
+  describe('Deposit in TriTON Pool', () => {
     afterEach(async () => {
       // Sender triTON balance should be increased
       await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);

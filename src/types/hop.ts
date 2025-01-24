@@ -2,9 +2,9 @@ import { Asset, AssetSchema } from '@torch-finance/core';
 import { z } from 'zod';
 import { PoolResponseSchema } from '../api/types/pool';
 export enum HopAction {
-  SWAP = 'swap',
-  DEPOSIT = 'deposit',
-  WITHDRAW = 'withdraw',
+  SWAP = 'Swap',
+  DEPOSIT = 'Deposit',
+  WITHDRAW = 'Withdraw',
 }
 
 export const HopSchema = z.object({

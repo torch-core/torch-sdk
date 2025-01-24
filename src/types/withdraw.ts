@@ -3,12 +3,13 @@ import { Slippage, SlippageSchema } from './slippage';
 import { AddressSchema, Allocation, Asset, Marshallable } from '@torch-finance/core';
 import { z } from 'zod';
 
-export type WithdrawMode = 'single' | 'balanced';
+export type WithdrawMode = 'Single' | 'Balanced';
 
 interface BaseWithdraw {
   pool: z.input<typeof AddressSchema>;
   burnLpAmount: bigint;
   queryId: bigint;
+  recipient?: z.input<typeof AddressSchema>;
   slippageTolerance?: Slippage;
   minAmountOuts?: Allocation | Allocation[];
   extraPayload?: null; // TODO: implement extraPayload when referral is implemented
@@ -17,23 +18,23 @@ interface BaseWithdraw {
 // Strictly define NextWithdraw based on mode
 interface NextWithdrawSingleRaw {
   pool: z.input<typeof AddressSchema>;
-  mode: 'single';
+  mode: 'Single';
   withdrawAsset: Asset; // Must be defined for single mode
 }
 interface NextWithdrawSingle {
   pool: Address;
-  mode: 'single';
+  mode: 'Single';
   withdrawAsset: Asset; // Must be defined for single mode
 }
 
 interface NextWithdrawBalancedRaw {
   pool: z.input<typeof AddressSchema>;
-  mode: 'balanced';
+  mode: 'Balanced';
   withdrawAsset?: never; // Must be undefined for balanced mode
 }
 interface NextWithdrawBalanced {
   pool: Address;
-  mode: 'balanced';
+  mode: 'Balanced';
   withdrawAsset?: never; // Must be undefined for balanced mode
 }
 
@@ -42,7 +43,7 @@ export type NextWithdraw = NextWithdrawSingle | NextWithdrawBalanced;
 
 // single mode base type
 interface SingleWithdrawBase extends BaseWithdraw {
-  mode: 'single';
+  mode: 'Single';
 }
 
 // Mutual exclusivity between withdrawAsset and nextWithdraw
@@ -60,7 +61,7 @@ type SingleWithdrawParams = SingleWithdrawWithNext | SingleWithdrawWithAsset;
 
 // balanced mode type
 interface BalancedWithdrawParams extends BaseWithdraw {
-  mode: 'balanced';
+  mode: 'Balanced';
   nextWithdraw?: NextWithdrawRaw; // No restrictions for nextWithdraw in balanced mode
 }
 
@@ -73,7 +74,8 @@ export class Withdraw implements Marshallable {
   burnLpAmount: bigint;
   queryId: bigint;
   slippageTolerance?: Slippage;
-  minAmountOuts?: Allocation[];
+  recipient?: Address;
+  // minAmountOuts?: Allocation[]; // TODO: implement minAmountOuts when simulate withdraw exact out is implemented
   extraPayload?: null; // TODO: implement extraPayload when referral is implemented
   withdrawAsset?: Asset;
   nextWithdraw?: NextWithdraw;
@@ -84,10 +86,11 @@ export class Withdraw implements Marshallable {
     this.burnLpAmount = params.burnLpAmount;
     this.queryId = params.queryId ?? 0n;
     this.slippageTolerance = params.slippageTolerance ? SlippageSchema.parse(params.slippageTolerance) : undefined;
-    this.minAmountOuts = params.minAmountOuts ? Allocation.createAllocations(params.minAmountOuts) : undefined;
+    // this.minAmountOuts = params.minAmountOuts ? Allocation.createAllocations(params.minAmountOuts) : undefined;
+    this.recipient = params.recipient ? AddressSchema.parse(params.recipient) : undefined;
     this.extraPayload = params.extraPayload;
 
-    if (params.mode === 'single' && !params.withdrawAsset && !params.nextWithdraw) {
+    if (params.mode === 'Single' && !params.withdrawAsset && !params.nextWithdraw) {
       throw new Error('withdrawAsset must be defined when mode is single');
     }
 
@@ -100,9 +103,9 @@ export class Withdraw implements Marshallable {
     // Validate parameters based on mode
     if (params.nextWithdraw) {
       const hasNextWithdrawAsset = Boolean(params.nextWithdraw?.withdrawAsset);
-      const isNextModeSingle = params.nextWithdraw?.mode === 'single';
-      const isNextModeBalanced = params.nextWithdraw?.mode === 'balanced';
-      if (params.mode === 'single') {
+      const isNextModeSingle = params.nextWithdraw?.mode === 'Single';
+      const isNextModeBalanced = params.nextWithdraw?.mode === 'Balanced';
+      if (params.mode === 'Single') {
         if (hasNextWithdrawAsset && isNextModeBalanced) {
           throw new Error('Next withdrawAsset must be undefined when nextWithdraw mode is balanced');
         }
@@ -111,34 +114,32 @@ export class Withdraw implements Marshallable {
         }
 
         this.withdrawAsset = undefined;
-      } else if (params.mode === 'balanced') {
+      } else if (params.mode === 'Balanced') {
         if (isNextModeSingle && !hasNextWithdrawAsset) {
           throw new Error('Next withdrawAsset must be defined when nextWithdraw mode is single');
         }
         if (isNextModeBalanced && hasNextWithdrawAsset) {
           throw new Error('Next withdrawAsset must be undefined when nextWithdraw mode is balanced');
         }
-        if (params.minAmountOuts || params.slippageTolerance) {
-          throw new Error(
-            'minAmountOuts and slippageTolerance are not supported in "withdraw all and withdraw next" for now',
-          );
+        if (params.slippageTolerance) {
+          throw new Error('slippageTolerance are not supported in "withdraw all and withdraw next" for now');
         }
       }
-      if (params.nextWithdraw.mode === 'single') {
+      if (params.nextWithdraw.mode === 'Single') {
         this.nextWithdraw = {
-          mode: 'single',
+          mode: 'Single',
           pool: AddressSchema.parse(params.nextWithdraw.pool),
           withdrawAsset: params.nextWithdraw.withdrawAsset,
         };
       } else {
         this.nextWithdraw = {
-          mode: 'balanced',
+          mode: 'Balanced',
           pool: AddressSchema.parse(params.nextWithdraw.pool),
         };
       }
     }
 
-    if (params.mode === 'single' && !params.nextWithdraw) {
+    if (params.mode === 'Single' && !params.nextWithdraw) {
       this.withdrawAsset = params.withdrawAsset;
     }
   }
@@ -157,8 +158,9 @@ export class Withdraw implements Marshallable {
           }
         : undefined,
       queryId: this.queryId === undefined ? undefined : this.queryId.toString(),
+      recipient: this.recipient ? this.recipient.toString() : undefined,
       slippageTolerance: this.slippageTolerance ? this.slippageTolerance.toString() : undefined,
-      minAmountOuts: this.minAmountOuts ? this.minAmountOuts?.map((a) => a.toJSON()) : undefined,
+      // minAmountOuts: this.minAmountOuts ? this.minAmountOuts?.map((a) => a.toJSON()) : undefined,
       extraPayload: this.extraPayload,
     };
   }
