@@ -667,7 +667,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
-        await swapImpactQuaTON();
+        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('5'));
 
         // Reset balance
         senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -698,7 +698,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -857,7 +857,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -1088,7 +1088,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON();
+        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
