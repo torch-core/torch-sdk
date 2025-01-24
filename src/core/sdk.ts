@@ -414,7 +414,7 @@ export class TorchSDK {
     }
 
     const senderArgs = await this.factory.getDepositPayload(sender, {
-      queryId: parsedParams.queryId || 0n,
+      queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
       poolAllocations,
       config: {
@@ -611,7 +611,7 @@ export class TorchSDK {
     // Handle different actions
     if (firstHop.action === 'Swap') {
       const senderArgs = await this.factory.getSwapPayload(sender, {
-        queryId: parsedParams.queryId,
+        queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         assetIn: firstHop.assetIn,
         assetOut: firstHop.assetOut,
@@ -632,7 +632,7 @@ export class TorchSDK {
 
     if (firstHop.action === 'Deposit') {
       const senderArgs = await this.factory.getDepositPayload(sender, {
-        queryId: parsedParams.queryId,
+        queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         poolAllocations: Allocation.createAllocations(
           firstHop.pool.assets.map(({ asset }) => ({
@@ -656,7 +656,7 @@ export class TorchSDK {
 
     if (firstHop.action === 'Withdraw') {
       return await this.factory.getWithdrawPayload(sender, {
-        queryId: parsedParams.queryId,
+        queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         burnLpAmount: parsedExactInParams.amountIn,
         config: {
