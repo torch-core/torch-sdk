@@ -20,8 +20,6 @@ import {
   AssetRawResponse,
   AssetResponse,
   AssetResponseSchema,
-  // Signed Rate
-  SignedRateResponse,
   // Pool
   PoolRawResponse,
   PoolResponse,
@@ -105,7 +103,7 @@ export class TorchAPI {
   }
 
   async getSignedRates(poolAddresses: Address[]): Promise<SignedRate> {
-    const { data } = await this.oracle.get<SignedRateResponse>('/signed-rates', {
+    const { data } = await this.oracle.get('/signed-rates', {
       params: {
         poolAddresses: poolAddresses.map((address) => address.toString()).join(','),
       },

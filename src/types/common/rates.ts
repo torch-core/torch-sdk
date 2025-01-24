@@ -1,3 +1,6 @@
-import { Allocation } from '@torch-finance/core';
+import { RatePayload } from '@torch-finance/core';
 
-export type PoolRates = (Allocation[] | null)[];
+/**
+ * If the pool useRate = false, then the pool rate payload is null
+ */
+export type PoolsRatePayloads = (RatePayload | null)[];
