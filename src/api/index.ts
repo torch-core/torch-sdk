@@ -10,7 +10,7 @@ import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
 import { SwapParams, SwapParamsSchema } from '../types/swap';
 import { DepositParams, DepositParamsSchema } from '../types/deposit';
-import { WithdrawParams } from '../types/withdraw';
+import { WithdrawParams, WithdrawParamsSchema } from '../types/withdraw';
 import { GqlQuery, GraphQLResponse } from './types/graphql';
 
 export type TorchAPIOptions = {
@@ -55,19 +55,6 @@ export class TorchAPI {
         `,
     });
     return data.pools;
-  }
-
-  async getPoolByAddress(address: Address): Promise<PoolResponse> {
-    const { data } = await this.indexer.post<{ pool: PoolRawResponse }>('/graphql', {
-      query: `
-          query {
-            pool(address: "${address.toRawString()}") {
-              ...PoolResponse
-            }
-          }
-        `,
-    });
-    return PoolResponseSchema.parse(data.pool);
   }
 
   async getExchangableAssets(assetIn?: Asset): Promise<AssetResponse[]> {
@@ -186,11 +173,12 @@ export class TorchAPI {
   }
 
   async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    const parsedParams = WithdrawParamsSchema.parse(params);
     let withdrawAsset: Asset | undefined;
-    if (params.nextWithdraw && params.mode === 'Single') {
-      withdrawAsset = Asset.jetton(params.nextWithdraw.pool);
-    } else if (params.mode === 'Single') {
-      withdrawAsset = params.withdrawAsset;
+    if (parsedParams.mode === 'Single' && parsedParams.nextWithdraw) {
+      withdrawAsset = Asset.jetton(parsedParams.nextWithdraw.pool);
+    } else if (parsedParams.mode === 'Single') {
+      withdrawAsset = parsedParams.withdrawAsset;
     }
     const { data } = await this.indexer.post<
       {
@@ -199,15 +187,17 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/withdraw', {
-      pool: params.pool.toString(),
-      removeLpAmount: params.burnLpAmount.toString(),
-      mode: params.mode,
+      pool: parsedParams.pool.toString(),
+      removeLpAmount: parsedParams.burnLpAmount.toString(),
+      mode: parsedParams.mode,
       withdrawAsset: withdrawAsset,
-      nextWithdraw: params.nextWithdraw
+      nextWithdraw: parsedParams.nextWithdraw
         ? {
-            mode: params.nextWithdraw.mode,
-            pool: params.nextWithdraw.pool.toString(),
-            withdrawAsset: params.nextWithdraw.withdrawAsset,
+            mode: parsedParams.nextWithdraw.mode,
+            pool: parsedParams.nextWithdraw.pool.toString(),
+            ...(parsedParams.nextWithdraw.mode === 'Single' && {
+              withdrawAsset: parsedParams.nextWithdraw.withdrawAsset,
+            }),
           }
         : undefined,
     });

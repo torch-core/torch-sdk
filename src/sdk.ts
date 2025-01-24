@@ -1,9 +1,9 @@
 import {
   DepositNext,
   Factory,
-  SimulateDepositResult,
+  SimulateSwapExactInResult,
+  SimulateSwapExactOutResult,
   SimulateSwapResult,
-  SimulateWithdrawResult,
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
@@ -15,13 +15,17 @@ import { DepositParamsSchema } from './types/deposit';
 import { PoolResponse } from './api/types/pool';
 import Decimal from 'decimal.js';
 import { Allocation, Asset, normalize, SignedRate } from '@torch-finance/core';
-import { Withdraw, WithdrawParams } from './types/withdraw';
+import { WithdrawParams, WithdrawParamsSchema } from './types/withdraw';
 import { ExactInParamsSchema, SwapParamsSchema } from './types/swap';
 import { SwapParams } from './types/swap';
 import { Hop, HopAction, HopSchema } from './types/hop';
 import { buildSwapNext } from './utils/builder';
 import { Simulator } from './simulate';
 import { PoolRates } from './types/rates';
+import { SimulateSwapResponse } from './types/simulateSwap';
+import { SimulateDepositResponse } from './types/simulateDeposit';
+import { SimulateWithdrawResponse } from './types/simulateWithdraw';
+import { generateQueryId } from './utils/helper';
 
 export type TorchSDKOptions = {
   indexerEndpoint?: string;
@@ -198,13 +202,14 @@ export class TorchSDK {
    */
   private async calculateSwapMinAmountOuts(
     params: SwapParams,
-    poolsRates: PoolRates,
+    poolsRates?: PoolRates,
   ): Promise<{
     amountIn: bigint;
+    amountOuts: bigint[];
     minAmountOuts: bigint[] | null;
+    rawSimulateResults: SimulateSwapResult[];
   }> {
     const parsedParams = SwapParamsSchema.parse(params);
-
     let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
 
     const amountOuts: bigint[] = [];
@@ -214,7 +219,6 @@ export class TorchSDK {
      * Simulate swap to get the exact output amounts
      */
     const simulateResults = await this.simulator.swap(params, poolsRates);
-    console.log('simulateResults in calculateSwapMinAmountOuts', simulateResults);
 
     if (simulateResults.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -305,8 +309,6 @@ export class TorchSDK {
       }
     }
 
-    console.log('minAmountOuts After', minAmountOuts);
-
     // Validate amountOuts
     if (amountOuts.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -327,13 +329,40 @@ export class TorchSDK {
       throw new Error('Amount in must be greater than 0');
     }
 
-    return { amountIn, minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null };
+    return {
+      amountIn,
+      amountOuts,
+      minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null,
+      rawSimulateResults: simulateResults,
+    };
   }
 
   private calculateMinAmountOutBySlippage(amountOut: bigint, slippageTolerance: Decimal): bigint {
     const slippageMultiplier = new Decimal(1).minus(slippageTolerance.toNumber());
     const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
     return minAmountOut;
+  }
+
+  /**
+   * Calculates the execution price based on the amountIn and amountOut.
+   *
+   * This method converts the given amountIn and amountOut from BigInt to Decimal for precise calculation.
+   * It then calculates the execution price by dividing amountIn by amountOut.
+   *
+   * @param amountIn - The amount of asset being input into the transaction.
+   * @param amountOut - The amount of asset being output from the transaction.
+   * @returns The execution price as a Decimal value. (1 amountIn = amountOut amountOut)
+   */
+  private calculateExecutionPrice(
+    tokenIn: { amount: bigint; decimals: number },
+    tokenOut: { amount: bigint; decimals: number },
+  ): string {
+    // Convert amounts to decimal for precise calculation
+    const amountInDecimal = new Decimal(tokenIn.amount.toString()).div(10 ** tokenIn.decimals);
+    const amountOutDecimal = new Decimal(tokenOut.amount.toString()).div(10 ** tokenOut.decimals);
+
+    // Calculate price as amountIn/amountOut
+    return amountInDecimal.div(amountOutDecimal).toFixed(9);
   }
 
   /**
@@ -409,7 +438,7 @@ export class TorchSDK {
     console.log('nextMinAmountOut in deposit', nextMinAmountOut);
 
     const senderArgs = await this.factory.getDepositPayload(sender, {
-      queryId: params.queryId || 0n,
+      queryId: parsedParams.queryId || 0n,
       poolAddress: pool.address,
       poolAllocations,
       config: {
@@ -433,7 +462,7 @@ export class TorchSDK {
   }
 
   async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
-    const parsedParams = new Withdraw(params);
+    const parsedParams = WithdrawParamsSchema.parse(params);
 
     const pools = await this.getPools(
       [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
@@ -445,20 +474,21 @@ export class TorchSDK {
     // Get minAmountOuts if slippageTolerance is provided
     let minAmountOuts: Allocation[] | null = null;
     let nextMinAmountOuts: Allocation[] | null = null;
+    let withdrawAsset: Asset | undefined =
+      parsedParams.mode === 'Single' && !parsedParams.nextWithdraw ? parsedParams.withdrawAsset : undefined;
 
     // Validate next withdraw requirements
     if (parsedParams.nextWithdraw) {
       if (!nextPool) throw new Error(`Next pool ${parsedParams.nextWithdraw?.pool} not found`);
+      // If withdrawAsset is not provided in single mode, use the next pool's LP asset
       if (parsedParams.mode === 'Single') {
-        parsedParams.withdrawAsset = nextPool.lpAsset.asset;
+        withdrawAsset = nextPool.lpAsset.asset;
       }
     }
 
     // Calculate minAmountOuts
-    console.log('parsedParams.slippageTolerance', parsedParams.slippageTolerance);
     if (parsedParams.slippageTolerance) {
       const simulateResults = await this.simulator.withdraw(params, poolsRates);
-      console.log('simulateResults in slippage', simulateResults);
       if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
       const simulateResult = simulateResults[0]!;
 
@@ -481,7 +511,7 @@ export class TorchSDK {
       if (parsedParams.mode === 'Single') {
         minAmountOuts = Allocation.createAllocations([
           {
-            asset: parsedParams.withdrawAsset!,
+            asset: withdrawAsset!,
             value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
           },
         ]);
@@ -534,21 +564,18 @@ export class TorchSDK {
       }
     }
 
-    console.log('minAmounts after slippage', minAmountOuts);
-    console.log('nextMinAmounts after slippage', nextMinAmountOuts);
-
     const senderArgs = await this.factory.getWithdrawPayload(sender, {
-      queryId: params.queryId,
+      queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
       signedRate: signedRate,
       recipient: parsedParams.recipient,
-      extraPayload: undefined, // TODO: Add extra payload
+      extraPayload: undefined, // TODO: Add extra payload in next release
       config:
         parsedParams.mode === 'Single'
           ? {
               mode: 'Single',
-              assetOut: parsedParams.withdrawAsset!,
+              assetOut: withdrawAsset!, // Must provide withdrawAsset in single mode for contract wrapper, no matter it has next withdraw or not.
               minAmountOut: minAmountOuts?.at(0)?.value,
             }
           : {
@@ -670,15 +697,182 @@ export class TorchSDK {
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
 
-  async simulateSwap(params: SwapParams): Promise<SimulateSwapResult[]> {
-    return await this.simulator.swap(params);
+  async simulateSwap(params: SwapParams): Promise<SimulateSwapResponse> {
+    const parsedParams = SwapParamsSchema.parse(params);
+
+    // Get hops
+    let hops: Hop[] = [];
+    if (parsedParams.routes && parsedParams.routes.length > 0) {
+      const pools = await this.getPools(parsedParams.routes);
+      hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
+    } else {
+      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
+      params.routes = hops.map((hop) => hop.pool.address);
+      parsedParams.routes = hops.map((hop) => hop.pool.address);
+    }
+
+    // Get inDecimals, outDecimals
+    const inDecimals = hops[0].pool.assets.find(({ asset }) => asset.equals(parsedParams.assetIn))?.decimals;
+    const outDecimals = hops[hops.length - 1].pool.assets.find(({ asset }) =>
+      asset.equals(parsedParams.assetOut),
+    )?.decimals;
+
+    if (!inDecimals || !outDecimals) throw new Error('InDecimals or OutDecimals not found');
+
+    // Calculate minAmountOuts
+    const { amountIn, amountOuts, minAmountOuts, rawSimulateResults } = await this.calculateSwapMinAmountOuts(params);
+
+    if (!rawSimulateResults.every((result) => result.mode === parsedParams.mode))
+      throw new Error('Simulate swap result mode must match swap mode');
+
+    if (parsedParams.mode === 'ExactIn') {
+      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      if (lastDetail.mode !== 'ExactIn') throw new Error('Last detail must be ExactIn');
+      return {
+        mode: 'ExactIn',
+        amountOut: amountOuts[0],
+        minAmountOut: minAmountOuts?.at(0),
+        details: rawSimulateResults as SimulateSwapExactInResult[],
+        executionPrice: this.calculateExecutionPrice(
+          { amount: amountIn, decimals: inDecimals },
+          { amount: amountOuts[0], decimals: outDecimals },
+        ),
+      };
+    } else {
+      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      if (lastDetail.mode !== 'ExactOut') throw new Error('Last detail must be ExactOut');
+      return {
+        mode: 'ExactOut',
+        amountIn: amountIn,
+        minAmountOut: minAmountOuts?.at(0),
+        details: rawSimulateResults as SimulateSwapExactOutResult[],
+        executionPrice: this.calculateExecutionPrice(
+          { amount: amountIn, decimals: inDecimals },
+          { amount: parsedParams.amountOut, decimals: outDecimals },
+        ),
+      };
+    }
   }
 
-  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResult[]> {
-    return await this.simulator.deposit(params);
+  /**
+   * Simulates a deposit operation and returns detailed information about the expected outcome
+   *
+   * @param params - The deposit parameters
+   * @returns A promise that resolves to the simulation response containing LP token amounts and execution details
+   */
+  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResponse> {
+    const parsedParams = DepositParamsSchema.parse(params);
+
+    // Get pools and rates
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
+    );
+
+    // Simulate the deposit
+    const simulateResults = await this.simulator.deposit(params);
+    if (simulateResults.length !== pools.length) {
+      throw new Error(
+        `Simulate deposit result length must match pools length: ${simulateResults.length} !== ${pools.length}`,
+      );
+    }
+
+    const lastSimulateResult = simulateResults[simulateResults.length - 1]!;
+
+    return {
+      lpTokenOut: lastSimulateResult.lpTokenOut,
+      lpTotalSupplyAfter: lastSimulateResult.lpTotalSupply,
+      minLpTokenOut: parsedParams.slippageTolerance
+        ? this.calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
+        : undefined,
+      details: simulateResults,
+    };
   }
 
-  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
-    return await this.simulator.withdraw(params);
+  /**
+   * Simulates a withdraw operation and returns detailed information about the expected outcome
+   *
+   * @param params - The withdraw parameters
+   * @returns A promise that resolves to the simulation response containing output amounts and execution details
+   */
+  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResponse> {
+    const parsedParams = WithdrawParamsSchema.parse(params);
+
+    // Get pools and rates
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
+    );
+
+    // Simulate the withdrawal
+    const simulateResults = await this.simulator.withdraw(params);
+    if (simulateResults.length !== pools.length) {
+      throw new Error(
+        `Simulate withdraw result length must match pools length: ${simulateResults.length} !== ${pools.length}`,
+      );
+    }
+
+    const [withdrawResult, nextWithdrawResult] = simulateResults;
+    const [pool, nextPool] = pools;
+
+    // Collect all amountOuts from all simulation results
+    let amountOuts: Allocation[] = [];
+    let minAmountOuts: Allocation[] | undefined;
+
+    // First withdraw
+    if (parsedParams.mode === 'Balanced') {
+      amountOuts = amountOuts.concat(
+        withdrawResult.amountOuts
+          .map((amountOut, i) => {
+            // If next withdraw is provided, skip base lp asset (nextPool.lpAsset)
+            if (parsedParams.nextWithdraw && pool.assets[i].asset.equals(nextPool.lpAsset.asset)) return;
+            return new Allocation({
+              asset: pool.assets[i].asset,
+              value: amountOut,
+            });
+          })
+          .filter((allocation): allocation is Allocation => allocation !== undefined),
+      );
+    } else {
+      if (withdrawResult.amountOuts.length !== 1) throw new Error('First withdraw result must have 1 amount out');
+      // If next withdraw is provided, skip
+      if (!parsedParams.nextWithdraw) {
+        amountOuts.push(new Allocation({ asset: parsedParams.withdrawAsset, value: withdrawResult.amountOuts[0] }));
+      }
+    }
+
+    // Next withdraw
+    if (parsedParams.nextWithdraw) {
+      if (parsedParams.nextWithdraw.mode === 'Balanced') {
+        amountOuts = amountOuts.concat(
+          nextWithdrawResult.amountOuts.map(
+            (amountOut, i) =>
+              new Allocation({
+                asset: nextPool.assets[i].asset,
+                value: amountOut,
+              }),
+          ),
+        );
+      } else {
+        if (nextWithdrawResult.amountOuts.length !== 1) throw new Error('Next withdraw result must have 1 amount out');
+        amountOuts.push(
+          new Allocation({ asset: parsedParams.nextWithdraw.withdrawAsset!, value: nextWithdrawResult.amountOuts[0] }),
+        );
+      }
+    }
+
+    // Calculate minAmountOuts if slippage tolerance is provided
+    if (parsedParams.slippageTolerance) {
+      minAmountOuts = Allocation.createAllocations(
+        amountOuts.map((allocation) => ({
+          asset: allocation.asset,
+          value: this.calculateMinAmountOutBySlippage(allocation.value, parsedParams.slippageTolerance!),
+        })),
+      );
+    }
+
+    return {
+      amountOuts,
+      minAmountOuts,
+      details: simulateResults,
+    };
   }
 }
