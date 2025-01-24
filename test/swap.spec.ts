@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { SwapParams, TorchSDK } from '../src';
 import { initialize } from './setup';
-import { PoolAssets } from './config';
+import { PoolAssets, PoolConfig } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { JettonMaster, JettonWallet } from '@ton/ton';
 import {
@@ -106,6 +106,28 @@ describe('Swap Testcases', () => {
   });
 
   describe('Swap in TriTON Pool', () => {
+    it('should swap tsTON to stTON by routes', async () => {
+      // Build swap exact in payload
+      const amountIn = toNano('0.05');
+      const swapExactInParams: SwapParams = {
+        mode: 'ExactIn',
+        assetIn: PoolAssets.tsTONAsset,
+        assetOut: PoolAssets.stTONAsset,
+        amountIn,
+        routes: [PoolConfig.triTONPoolAddress],
+      };
+
+      // Send swap
+      const sendExactInArgs = await torchSDK.getSwapPayload(sender, swapExactInParams);
+      await send(sendExactInArgs);
+
+      // Sender stTON balance should be increased
+      await checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore);
+
+      // Sender tsTON balance should be decreased
+      await checkJettonBalDecrease(senderTsTONWallet, senderTsTONBalBefore, amountIn);
+    });
+
     it('should swap tsTON to stTON (ExactIn + ExactOut)', async () => {
       // Build swap exact in payload
       const amountIn = toNano('0.05');
@@ -332,6 +354,28 @@ describe('Swap Testcases', () => {
 
   describe('Cross pool swap', () => {
     describe('Deposit and swap', () => {
+      it('should swap tsTON to hTON by routes', async () => {
+        // Build swap payload
+        const amountIn = toNano('0.05');
+        const swapExactInParams: SwapParams = {
+          mode: 'ExactIn',
+          assetIn: PoolAssets.tsTONAsset,
+          assetOut: PoolAssets.hTONAsset,
+          amountIn,
+          routes: [PoolConfig.triTONPoolAddress, PoolConfig.quaTONPoolAddress],
+        };
+
+        // Send swap
+        const sendExactInArgs = await torchSDK.getSwapPayload(sender, swapExactInParams);
+        await send(sendExactInArgs);
+
+        // Sender hTON balance should be increased
+        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
+
+        // Sender tsTON balance should be decreased
+        await checkJettonBalDecrease(senderTsTONWallet, senderTsTONBalBefore, amountIn);
+      });
+
       it('should swap tsTON to hTON (ExactIn + ExactOut)', async () => {
         // Build swap payload
         const amountIn = toNano('0.05');
@@ -526,6 +570,27 @@ describe('Swap Testcases', () => {
     });
 
     describe('Swap and Withdraw', () => {
+      it('should swap hTON to tsTON by routes', async () => {
+        // Build swap payload
+        const amountIn = toNano('0.05');
+        const swapExactInParams: SwapParams = {
+          mode: 'ExactIn',
+          assetIn: PoolAssets.hTONAsset,
+          assetOut: PoolAssets.tsTONAsset,
+          amountIn,
+          routes: [PoolConfig.quaTONPoolAddress, PoolConfig.triTONPoolAddress],
+        };
+
+        // Send swap
+        const sendExactInArgs = await torchSDK.getSwapPayload(sender, swapExactInParams);
+        await send(sendExactInArgs);
+
+        // Sender tsTON balance should be increased
+        await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
+
+        // Sender hTON balance should be decreased
+        await checkJettonBalDecrease(senderHTONWallet, senderHTONBalBefore, amountIn);
+      });
       it('should swap hTON to tsTON (ExactIn + ExactOut)', async () => {
         // Build swap payload
         const amountIn = toNano('0.05');
@@ -719,6 +784,27 @@ describe('Swap Testcases', () => {
     });
 
     describe('Deposit and Deposit', () => {
+      it('should swap tsTON to quaTON by routes', async () => {
+        // Build swap payload
+        const amountIn = toNano('0.05');
+        const swapExactInParams: SwapParams = {
+          mode: 'ExactIn',
+          assetIn: PoolAssets.tsTONAsset,
+          assetOut: PoolAssets.quaTONAsset,
+          amountIn,
+        };
+
+        // Send swap
+        const sendExactInArgs = await torchSDK.getSwapPayload(sender, swapExactInParams);
+        await send(sendExactInArgs);
+
+        // Sender tsTON balance should be decreased
+        await checkJettonBalDecrease(senderTsTONWallet, senderTsTONBalBefore, amountIn);
+
+        // Sender quaTON balance should be increased
+        await checkJettonBalIncrease(senderQuaTONWallet, senderQuaTONBalBefore);
+      });
+
       it('should swap tsTON to quaTON (ExactIn + ExactOut)', async () => {
         // Build swap payload
         const amountIn = toNano('0.05');
@@ -906,6 +992,27 @@ describe('Swap Testcases', () => {
     });
 
     describe('Withdraw and Withdraw', () => {
+      it('should swap quaTON to tsTON by routes', async () => {
+        // Build swap payload
+        const amountIn = 10n ** 16n;
+        const swapExactInParams: SwapParams = {
+          mode: 'ExactIn',
+          assetIn: PoolAssets.quaTONAsset,
+          assetOut: PoolAssets.tsTONAsset,
+          amountIn,
+          routes: [PoolConfig.quaTONPoolAddress, PoolConfig.triTONPoolAddress],
+        };
+
+        // Send swap
+        const sendExactInArgs = await torchSDK.getSwapPayload(sender, swapExactInParams);
+        await send(sendExactInArgs);
+
+        // Sender quaTON balance should be decreased
+        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, amountIn);
+
+        // Sender tsTON balance should be increased
+        await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
+      });
       it('should swap quaTON to tsTON (ExactIn + ExactOut)', async () => {
         // Build swap payload
         const amountIn = 10n ** 16n;

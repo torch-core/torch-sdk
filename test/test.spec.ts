@@ -11,7 +11,7 @@ describe('Simulate Testcases', () => {
   //   });
   // });
   it('Hello world', async () => {
-    console.log('Hello world');
+    // console.log('Hello world');
   });
 
   // describe('Deposit', () => {
