@@ -1,7 +1,6 @@
 import { TonClient4 } from '@ton/ton';
 import { SimulateWithdrawResult, SimulateSwapResult, SimulateDepositResult } from '@torch-finance/dex-contract-wrapper';
 import { SwapParams, WithdrawParams, DepositParams } from '../types/sdk';
-import { PoolsRatePayloads } from '../types/common';
 import { TorchAPI } from './api';
 
 export interface SimulatorConfig {
@@ -18,9 +17,9 @@ export abstract class BaseSimulatorAPI {
     this.tonClient = config.tonClient;
   }
 
-  abstract swap(params: SwapParams, rates?: PoolsRatePayloads): Promise<SimulateSwapResult[]>;
-  abstract deposit(params: DepositParams, rates?: PoolsRatePayloads): Promise<SimulateDepositResult[]>;
-  abstract withdraw(params: WithdrawParams, rates?: PoolsRatePayloads): Promise<SimulateWithdrawResult[]>;
+  abstract swap(params: SwapParams): Promise<SimulateSwapResult[]>;
+  abstract deposit(params: DepositParams): Promise<SimulateDepositResult[]>;
+  abstract withdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]>;
 
   getConfig(): SimulatorConfig {
     return {
@@ -56,15 +55,15 @@ export class Simulator {
     }
   }
 
-  async swap(params: SwapParams, rates?: PoolsRatePayloads): Promise<SimulateSwapResult[]> {
-    return this.simulator.swap(params, rates);
+  async swap(params: SwapParams): Promise<SimulateSwapResult[]> {
+    return this.simulator.swap(params);
   }
 
-  async deposit(params: DepositParams, rates?: PoolsRatePayloads): Promise<SimulateDepositResult[]> {
-    return this.simulator.deposit(params, rates);
+  async deposit(params: DepositParams): Promise<SimulateDepositResult[]> {
+    return this.simulator.deposit(params);
   }
 
-  async withdraw(params: WithdrawParams, rates?: PoolsRatePayloads): Promise<SimulateWithdrawResult[]> {
-    return this.simulator.withdraw(params, rates);
+  async withdraw(params: WithdrawParams): Promise<SimulateWithdrawResult[]> {
+    return this.simulator.withdraw(params);
   }
 }
