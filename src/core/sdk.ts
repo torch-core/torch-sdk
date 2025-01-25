@@ -740,7 +740,7 @@ export class TorchSDK {
     return senderArgs;
   }
 
-  async getSwapRoutes(params: SwapParams): Promise<{ hops: Hop[]; routes: Address[] }> {
+  private async getSwapRoutes(params: SwapParams): Promise<{ hops: Hop[]; routes: Address[] }> {
     const parsedParams = SwapParamsSchema.parse(params);
     // Get hops
     let hops: Hop[] = [];
