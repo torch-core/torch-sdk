@@ -1,7 +1,6 @@
 // External Libs
 import { Address, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
-import Decimal from 'decimal.js';
 // Torch Libs
 import {
   DepositNext,
@@ -27,7 +26,7 @@ import {
 import { Hop, HopAction, HopSchema } from '../types/common';
 import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse } from '../types/simulator';
 
-import { generateQueryId, buildSwapNext } from '../utils';
+import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calculateExecutionPrice } from '../utils';
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
 
@@ -272,7 +271,7 @@ export class TorchSDK {
      */
     if (parsedParams.slippageTolerance) {
       for (const amountOut of amountOuts) {
-        const minAmountOut = this.calculateMinAmountOutBySlippage(amountOut, parsedParams.slippageTolerance);
+        const minAmountOut = calculateMinAmountOutBySlippage(amountOut, parsedParams.slippageTolerance);
         minAmountOuts.push(minAmountOut);
       }
     }
@@ -342,34 +341,6 @@ export class TorchSDK {
     };
   }
 
-  private calculateMinAmountOutBySlippage(amountOut: bigint, slippageTolerance: Decimal): bigint {
-    const slippageMultiplier = new Decimal(1).minus(slippageTolerance.toNumber());
-    const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
-    return minAmountOut;
-  }
-
-  /**
-   * Calculates the execution price based on the amountIn and amountOut.
-   *
-   * This method converts the given amountIn and amountOut from BigInt to Decimal for precise calculation.
-   * It then calculates the execution price by dividing amountIn by amountOut.
-   *
-   * @param amountIn - The amount of asset being input into the transaction.
-   * @param amountOut - The amount of asset being output from the transaction.
-   * @returns The execution price as a Decimal value. (1 amountIn = amountOut amountOut)
-   */
-  private calculateExecutionPrice(
-    tokenIn: { amount: bigint; decimals: number },
-    tokenOut: { amount: bigint; decimals: number },
-  ): string {
-    // Convert amounts to decimal for precise calculation
-    const amountInDecimal = new Decimal(tokenIn.amount.toString()).div(10 ** tokenIn.decimals);
-    const amountOutDecimal = new Decimal(tokenOut.amount.toString()).div(10 ** tokenOut.decimals);
-
-    // Calculate price as amountIn/amountOut
-    return amountInDecimal.div(amountOutDecimal).toFixed(9);
-  }
-
   /**
    * Generates the payload required to perform a token deposit operation.
    *
@@ -422,18 +393,15 @@ export class TorchSDK {
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
       const simulateResult = simulateResults[0]!;
 
-      minAmountOut = BigInt(
-        new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
-      );
+      minAmountOut = calculateMinAmountOutBySlippage(simulateResult.lpTokenOut, parsedParams.slippageTolerance);
 
       if (parsedParams.nextDeposit) {
         const nextSimulateResult = simulateResults[1];
         if (!nextSimulateResult) throw new Error('Simulate deposit result length must be 2');
 
-        nextMinAmountOut = BigInt(
-          new Decimal(1 - parsedParams.slippageTolerance.toNumber())
-            .mul(nextSimulateResult.lpTokenOut.toString())
-            .toFixed(0),
+        nextMinAmountOut = calculateMinAmountOutBySlippage(
+          nextSimulateResult.lpTokenOut,
+          parsedParams.slippageTolerance,
         );
       }
     }
@@ -517,7 +485,7 @@ export class TorchSDK {
         minAmountOuts = Allocation.createAllocations(
           pool.assets.map(({ asset }, i) => ({
             asset,
-            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
           })),
         );
       }
@@ -525,7 +493,7 @@ export class TorchSDK {
         minAmountOuts = Allocation.createAllocations([
           {
             asset: withdrawAsset!,
-            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
           },
         ]);
       }
@@ -556,10 +524,7 @@ export class TorchSDK {
           nextMinAmountOuts = Allocation.createAllocations(
             nextPool.assets.map(({ asset }, i) => ({
               asset,
-              value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[i],
-                parsedParams.slippageTolerance!,
-              ),
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[i], parsedParams.slippageTolerance!),
             })),
           );
         }
@@ -567,10 +532,7 @@ export class TorchSDK {
           nextMinAmountOuts = Allocation.createAllocations([
             {
               asset: parsedParams.nextWithdraw.withdrawAsset!,
-              value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[0],
-                parsedParams.slippageTolerance!,
-              ),
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[0], parsedParams.slippageTolerance!),
             },
           ]);
         }
@@ -762,7 +724,7 @@ export class TorchSDK {
         amountOut: amountOuts[0],
         minAmountOut: minAmountOuts?.at(0),
         details: rawSimulateResults as SimulateSwapExactInResult[],
-        executionPrice: this.calculateExecutionPrice(
+        executionPrice: calculateExecutionPrice(
           { amount: amountIn, decimals: inDecimals },
           { amount: amountOuts[0], decimals: outDecimals },
         ),
@@ -775,7 +737,7 @@ export class TorchSDK {
         amountIn: amountIn,
         minAmountOut: minAmountOuts?.at(0),
         details: rawSimulateResults as SimulateSwapExactOutResult[],
-        executionPrice: this.calculateExecutionPrice(
+        executionPrice: calculateExecutionPrice(
           { amount: amountIn, decimals: inDecimals },
           { amount: parsedParams.amountOut, decimals: outDecimals },
         ),
@@ -811,7 +773,7 @@ export class TorchSDK {
       lpTokenOut: lastSimulateResult.lpTokenOut,
       lpTotalSupplyAfter: lastSimulateResult.lpTotalSupply,
       minLpTokenOut: parsedParams.slippageTolerance
-        ? this.calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
+        ? calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
         : undefined,
       details: simulateResults,
     };
@@ -893,7 +855,7 @@ export class TorchSDK {
       minAmountOuts = Allocation.createAllocations(
         amountOuts.map((allocation) => ({
           asset: allocation.asset,
-          value: this.calculateMinAmountOutBySlippage(allocation.value, parsedParams.slippageTolerance!),
+          value: calculateMinAmountOutBySlippage(allocation.value, parsedParams.slippageTolerance!),
         })),
       );
     }
