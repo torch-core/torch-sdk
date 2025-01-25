@@ -36,12 +36,13 @@ export type TorchSDKOptions = {
   oracleEndpoint?: string;
   tonClient?: TonClient4;
   factoryAddress?: Address;
+  simulateMode?: 'offchain';
 };
 
 export class TorchSDK {
   public readonly tonClient: TonClient4;
   public readonly api: TorchAPI;
-  private readonly factory: OpenedContract<Factory>;
+  private readonly factoryContract: Factory;
   private readonly simulator: Simulator;
   private cachedPools: PoolResponse[];
 
@@ -51,8 +52,10 @@ export class TorchSDK {
     const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
     const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
+    const simulateMode = options?.simulateMode || 'offchain';
 
     // Intialization
+    this.factoryContract = Factory.createFromAddress(factoryAddress);
     this.tonClient =
       options?.tonClient ||
       new TonClient4({
@@ -66,20 +69,21 @@ export class TorchSDK {
     this.simulator = new Simulator({
       torchAPI: this.api,
       tonClient: this.tonClient,
-      mode: 'offchain',
+      mode: simulateMode,
     });
-    this.factory = this.tonClient.open(Factory.createFromAddress(factoryAddress));
     this.cachedPools = [];
   }
 
+  private openFactory(blockNumber?: number): OpenedContract<Factory> {
+    if (blockNumber) {
+      return this.tonClient.openAt(blockNumber, this.factoryContract);
+    }
+    return this.tonClient.open(this.factoryContract);
+  }
+
   /**
-   * Synchronizes the pool information with the latest data.
+   * Synchronizes the pool information with the latest data from the API
    *
-   * You can manually provide pool information to synchronize
-   *
-   * If no pool information is provided, data will be fetched from the API.
-   *
-   * @param pools Optional array of `PoolInfo` objects to override, if not provided, data will be fetched from the API.
    * @returns Resolves when the synchronization is complete.
    */
   async sync(): Promise<void> {
@@ -122,7 +126,7 @@ export class TorchSDK {
     return poolInfos;
   }
 
-  private _resolveHopsByRoutes(routes: PoolResponse[], assetIn: Asset, assetOut: Asset): Hop[] {
+  private resolveHopsByRoutes(routes: PoolResponse[], assetIn: Asset, assetOut: Asset): Hop[] {
     function calHopAction(
       currentPool: PoolResponse,
       currentAssetIn: Asset,
@@ -366,7 +370,7 @@ export class TorchSDK {
   async getDepositPayload(
     sender: Address,
     params: DepositParams,
-    options?: { simulateResult?: SimulateDepositResponse },
+    options?: { simulateResult?: SimulateDepositResponse; blockNumber?: number },
   ): Promise<SenderArguments[]> {
     const parsedParams = DepositParamsSchema.parse(params);
 
@@ -440,8 +444,9 @@ export class TorchSDK {
         );
       }
     }
-    console.timeEnd('calculate min amount out');
-    const senderArgs = await this.factory.getDepositPayload(sender, {
+
+    const factory = this.openFactory(options?.blockNumber);
+    const senderArgs = await factory.getDepositPayload(sender, {
       queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
       poolAllocations,
@@ -477,7 +482,11 @@ export class TorchSDK {
    * @param {WithdrawParams} params - The parameters for the withdraw, including the target pool, amounts, and optional next withdraw information.
    * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of withdraw payloads, ready to be signed and executed.
    */
-  async getWithdrawPayload(sender: Address, params: WithdrawParams): Promise<SenderArguments> {
+  async getWithdrawPayload(
+    sender: Address,
+    params: WithdrawParams,
+    options?: { blockNumber?: number },
+  ): Promise<SenderArguments> {
     const parsedParams = WithdrawParamsSchema.parse(params);
 
     const pools = await this.getPools(
@@ -574,7 +583,8 @@ export class TorchSDK {
       }
     }
 
-    const senderArgs = await this.factory.getWithdrawPayload(sender, {
+    const factory = this.openFactory(options?.blockNumber);
+    const senderArgs = await factory.getWithdrawPayload(sender, {
       queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
       burnLpAmount: parsedParams.burnLpAmount,
@@ -623,13 +633,17 @@ export class TorchSDK {
    * @param {SwapParams} params - The parameters for the swap, including the target pool, amounts, and optional next swap information.
    * @returns {Promise<SenderArguments>} - A promise that resolves to the swap payload, ready to be signed and executed.
    */
-  async getSwapPayload(sender: Address, params: SwapParams): Promise<SenderArguments> {
+  async getSwapPayload(
+    sender: Address,
+    params: SwapParams,
+    options?: { blockNumber?: number },
+  ): Promise<SenderArguments> {
     const parsedParams = SwapParamsSchema.parse(params);
     // Get hops
     let hops: Hop[] = [];
     if (parsedParams.routes && parsedParams.routes.length > 0) {
       const pools = await this.getPools(parsedParams.routes);
-      hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
+      hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
     } else {
       hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
       params.routes = hops.map((hop) => hop.pool.address);
@@ -664,10 +678,13 @@ export class TorchSDK {
       amountIn,
     });
 
+    // Open factory
+    const factory = this.openFactory(options?.blockNumber);
+
     // Handle different actions
     if (firstHop.action === 'Swap') {
       console.time('factory.getSwapPayload');
-      const senderArgs = await this.factory.getSwapPayload(sender, {
+      const senderArgs = await factory.getSwapPayload(sender, {
         queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         assetIn: firstHop.assetIn,
@@ -689,7 +706,7 @@ export class TorchSDK {
     }
 
     if (firstHop.action === 'Deposit') {
-      const senderArgs = await this.factory.getDepositPayload(sender, {
+      const senderArgs = await factory.getDepositPayload(sender, {
         queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         poolAllocations: Allocation.createAllocations(
@@ -713,7 +730,7 @@ export class TorchSDK {
     }
 
     if (firstHop.action === 'Withdraw') {
-      return await this.factory.getWithdrawPayload(sender, {
+      return await factory.getWithdrawPayload(sender, {
         queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
         burnLpAmount: parsedExactInParams.amountIn,
@@ -747,7 +764,7 @@ export class TorchSDK {
       const pools = await this.getPools(parsedParams.routes);
       console.timeEnd('getPools');
       console.time('resolveHops');
-      hops = this._resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
+      hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
       console.timeEnd('resolveHops');
     } else {
       console.time('getHops');
