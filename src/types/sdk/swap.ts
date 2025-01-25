@@ -35,6 +35,7 @@ export const SwapParamsSchema = z
   .superRefine((data, ctx) => {
     // Do not allow slippage tolerance and min amount out to be set at the same time
     if (data.slippageTolerance && data.minAmountOut) {
+      // If min amount out is set, slippage tolerance is ignored
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
         message: 'Slippage tolerance and min amount out cannot be set at the same time',

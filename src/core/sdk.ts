@@ -29,6 +29,7 @@ import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse
 import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calculateExecutionPrice } from '../utils';
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
+import Decimal from 'decimal.js';
 
 export type TorchSDKOptions = {
   apiEndpoint?: string;
@@ -266,6 +267,7 @@ export class TorchSDK {
       amountOuts.push(amountOut);
     }
     console.timeEnd('simulate swap output amounts');
+
     /**
      * Calculate minimum output amounts considering slippage
      *
@@ -294,6 +296,8 @@ export class TorchSDK {
         assetOut: parsedParams.assetOut,
         amountOut: parsedParams.minAmountOut, // Assume minAmountOut is the amountOut
       });
+
+      console.log('simulate results', simulateResults);
 
       // Validate simulate results length
       if (simulateResults.length !== parsedParams.routes!.length) {
@@ -359,20 +363,30 @@ export class TorchSDK {
    *
    * @throws {Error} Throws an error if base pool information is not found for a meta-pool deposit.
    */
-  async getDepositPayload(sender: Address, params: DepositParams): Promise<SenderArguments[]> {
+  async getDepositPayload(
+    sender: Address,
+    params: DepositParams,
+    options?: { simulateResult?: SimulateDepositResponse },
+  ): Promise<SenderArguments[]> {
     const parsedParams = DepositParamsSchema.parse(params);
 
+    console.time('getPools');
     const pools = await this.getPools(
       [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
     );
+    console.timeEnd('getPools');
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
+    console.time('getSignedRates');
     const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+    console.timeEnd('getSignedRates');
 
+    console.time('normalize');
     // Normalize allocations and meta allocation
     const poolAllocations: Allocation[] = normalize(
       parsedParams.depositAmounts,
       pool.assets.map(({ asset }) => asset),
     );
+    console.timeEnd('normalize');
     const metaAsset = nextPool?.assets.find(({ asset }) => !asset.jettonMaster?.equals(pool.address));
     const nextDepositAmounts = parsedParams.nextDeposit?.depositAmounts;
     if (metaAsset && nextDepositAmounts && !nextDepositAmounts.at(0)!.asset.equals(metaAsset!.asset)) {
@@ -389,10 +403,26 @@ export class TorchSDK {
       if (!metaAllocation) throw new Error(`Meta allocation is missing in next pool ${nextPool.address}`);
     }
 
+    console.time('calculate min amount out');
     // Calculate minAmountOut, nextMinAmountOut for the current pool and the next pool
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
-    if (parsedParams.slippageTolerance) {
+
+    if (
+      options?.simulateResult &&
+      options.simulateResult.details.length === pools.length &&
+      options.simulateResult.minLpTokenOut
+    ) {
+      console.log('SPEED UPPPP', options.simulateResult);
+      const simulateSlippage = new Decimal(options.simulateResult.minLpTokenOut.toString()).div(
+        options.simulateResult.lpTokenOut.toString(),
+      );
+      minAmountOut = calculateMinAmountOutBySlippage(options.simulateResult.details[0].lpTokenOut, simulateSlippage);
+      nextMinAmountOut = calculateMinAmountOutBySlippage(
+        options.simulateResult.details[1].lpTokenOut,
+        simulateSlippage,
+      );
+    } else if (parsedParams.slippageTolerance) {
       const simulateResults = await this.simulator.deposit(params);
 
       if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
@@ -410,7 +440,7 @@ export class TorchSDK {
         );
       }
     }
-
+    console.timeEnd('calculate min amount out');
     const senderArgs = await this.factory.getDepositPayload(sender, {
       queryId: parsedParams.queryId || (await generateQueryId()),
       poolAddress: pool.address,
@@ -613,7 +643,19 @@ export class TorchSDK {
     const signedRate = await this.api.getSignedRates(hops.map((hop) => hop.pool.address));
 
     // Get minAmountOuts, amountOuts
-    const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params);
+    let amountIn: bigint;
+    let minAmountOuts: bigint[] | null = null;
+    if (parsedParams.mode === 'ExactIn' && parsedParams.minAmountOut && parsedParams.routes?.length === 1) {
+      amountIn = parsedParams.amountIn;
+      minAmountOuts = [parsedParams.minAmountOut];
+    } else {
+      const result = await this.calculateSwapMinAmountOuts(params);
+      amountIn = result.amountIn;
+      minAmountOuts = result.minAmountOuts;
+    }
+
+    if (!minAmountOuts) throw new Error('Min amount outs not found');
+    if (minAmountOuts.length === 0) throw new Error('Min amount outs length must be greater than 0');
 
     // Parse exact in params
     const parsedExactInParams = ExactInParamsSchema.parse({
@@ -624,7 +666,7 @@ export class TorchSDK {
 
     // Handle different actions
     if (firstHop.action === 'Swap') {
-      console.time('getSwapPayload');
+      console.time('factory.getSwapPayload');
       const senderArgs = await this.factory.getSwapPayload(sender, {
         queryId: parsedParams.queryId || (await generateQueryId()),
         poolAddress: firstHop.pool.address,
@@ -642,6 +684,7 @@ export class TorchSDK {
         },
         next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
       });
+      console.timeEnd('factory.getSwapPayload');
       return senderArgs;
     }
 
@@ -684,7 +727,6 @@ export class TorchSDK {
         next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as WithdrawNext | null,
       });
     }
-    console.timeEnd('getSwapPayload');
 
     throw new Error(`Invalid action: ${firstHop.action}`);
   }
