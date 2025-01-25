@@ -407,11 +407,11 @@ export class TorchSDK {
       if (!metaAllocation) throw new Error(`Meta allocation is missing in next pool ${nextPool.address}`);
     }
 
-    console.time('calculate min amount out');
     // Calculate minAmountOut, nextMinAmountOut for the current pool and the next pool
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
 
+    console.log('options', options);
     if (
       options?.simulateResult &&
       options.simulateResult.details.length === pools.length &&
