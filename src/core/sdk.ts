@@ -1,18 +1,20 @@
 // External Libs
 import { Address, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
-import Decimal from 'decimal.js';
 // Torch Libs
 import {
   DepositNext,
   Factory,
+  SimulateDepositResult,
   SimulateSwapExactInResult,
   SimulateSwapExactOutResult,
   SimulateSwapResult,
+  SimulateWithdrawResult,
   SwapNext,
   WithdrawNext,
 } from '@torch-finance/dex-contract-wrapper';
-import { Allocation, Asset, normalize } from '@torch-finance/core';
+import { Allocation, Asset, normalize, SignedRate } from '@torch-finance/core';
+
 // Internal Types
 import { PoolResponse } from '../types/api/pool';
 import {
@@ -27,9 +29,10 @@ import {
 import { Hop, HopAction, HopSchema } from '../types/common';
 import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse } from '../types/simulator';
 
-import { generateQueryId, buildSwapNext } from '../utils';
+import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calculateExecutionPrice } from '../utils';
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
+import { AssetResponse } from '../types/api';
 
 export type TorchSDKOptions = {
   apiEndpoint?: string;
@@ -59,8 +62,7 @@ export class TorchSDK {
     this.tonClient =
       options?.tonClient ||
       new TonClient4({
-        // TODO: change to mainnet endpoint
-        endpoint: 'https://testnet-v4.tonhubapi.com',
+        endpoint: 'https://mainnet-v4.tonhubapi.com',
       });
     this.api = new TorchAPI({
       apiEndpoint: indexerEndpoint,
@@ -81,6 +83,10 @@ export class TorchSDK {
     return this.tonClient.open(this.factoryContract);
   }
 
+  async setPools(pools: PoolResponse[]): Promise<void> {
+    this.cachedPools = pools;
+  }
+
   /**
    * Synchronizes the pool information with the latest data from the API
    *
@@ -88,6 +94,15 @@ export class TorchSDK {
    */
   async sync(): Promise<void> {
     this.cachedPools = await this.api.getPools();
+  }
+
+  async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate | null> {
+    const poolNeedRates = pools.filter((pool) => pool.useRates).map((pool) => pool.address);
+    if (poolNeedRates.length === 0) {
+      return null;
+    }
+    const result = await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
+    return result;
   }
 
   /**
@@ -215,14 +230,21 @@ export class TorchSDK {
    * @param poolsRatesPayloads - The pool rates for the swap operation
    * @returns An object containing the exact output amounts and the minimum output amounts
    */
-  private async calculateSwapMinAmountOuts(params: SwapParams): Promise<{
+  private async calculateSwapMinAmountOuts(
+    params: SwapParams,
+    simulateResults?: SimulateSwapResult[],
+  ): Promise<{
     amountIn: bigint;
-    amountOuts: bigint[];
     minAmountOuts: bigint[] | null;
-    rawSimulateResults: SimulateSwapResult[];
   }> {
     const parsedParams = SwapParamsSchema.parse(params);
     let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
+    if (parsedParams.mode === 'ExactIn' && !parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
+      return {
+        amountIn,
+        minAmountOuts: null,
+      };
+    }
 
     const amountOuts: bigint[] = [];
     const minAmountOuts: bigint[] = [];
@@ -230,7 +252,9 @@ export class TorchSDK {
     /**
      * Simulate swap to get the exact output amounts
      */
-    const simulateResults = await this.simulator.swap(params);
+    if (!simulateResults) {
+      simulateResults = await this.simulator.swap(params);
+    }
 
     if (simulateResults.length !== parsedParams.routes!.length) {
       throw new Error(
@@ -268,6 +292,13 @@ export class TorchSDK {
       amountOuts.push(amountOut);
     }
 
+    if (parsedParams.mode === 'ExactOut' && !parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
+      return {
+        amountIn,
+        minAmountOuts: null,
+      };
+    }
+
     /**
      * Calculate minimum output amounts considering slippage
      *
@@ -276,7 +307,7 @@ export class TorchSDK {
      */
     if (parsedParams.slippageTolerance) {
       for (const amountOut of amountOuts) {
-        const minAmountOut = this.calculateMinAmountOutBySlippage(amountOut, parsedParams.slippageTolerance);
+        const minAmountOut = calculateMinAmountOutBySlippage(amountOut, parsedParams.slippageTolerance);
         minAmountOuts.push(minAmountOut);
       }
     }
@@ -338,69 +369,189 @@ export class TorchSDK {
       throw new Error('Amount in must be greater than 0');
     }
 
+    if (!minAmountOuts) throw new Error('Min amount outs not found');
+    if (minAmountOuts.length === 0) throw new Error('Min amount outs length must be greater than 0');
+
     return {
       amountIn,
-      amountOuts,
       minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null,
-      rawSimulateResults: simulateResults,
     };
   }
-
-  private calculateMinAmountOutBySlippage(amountOut: bigint, slippageTolerance: Decimal): bigint {
-    const slippageMultiplier = new Decimal(1).minus(slippageTolerance.toNumber());
-    const minAmountOut = BigInt(slippageMultiplier.mul(amountOut.toString()).toFixed(0));
-    return minAmountOut;
-  }
-
-  /**
-   * Calculates the execution price based on the amountIn and amountOut.
-   *
-   * This method converts the given amountIn and amountOut from BigInt to Decimal for precise calculation.
-   * It then calculates the execution price by dividing amountIn by amountOut.
-   *
-   * @param amountIn - The amount of asset being input into the transaction.
-   * @param amountOut - The amount of asset being output from the transaction.
-   * @returns The execution price as a Decimal value. (1 amountIn = amountOut amountOut)
-   */
-  private calculateExecutionPrice(
-    tokenIn: { amount: bigint; decimals: number },
-    tokenOut: { amount: bigint; decimals: number },
-  ): string {
-    // Convert amounts to decimal for precise calculation
-    const amountInDecimal = new Decimal(tokenIn.amount.toString()).div(10 ** tokenIn.decimals);
-    const amountOutDecimal = new Decimal(tokenOut.amount.toString()).div(10 ** tokenOut.decimals);
-
-    // Calculate price as amountIn/amountOut
-    return amountInDecimal.div(amountOutDecimal).toFixed(9);
-  }
-
-  /**
-   * Generates the payload required to perform a token deposit operation.
-   *
-   * This function parses the deposit parameters, ensures pool data is synchronized,
-   * calculates the minimum amount of LP tokens out if slippage tolerance is provided,
-   * retrieves necessary pool information, and generates payloads for deposit execution.
-   *
-   * @param {Address} sender - The address of the sender initiating the deposit.
-   * @param {DepositParams} params - The parameters for the deposit, including the target pool, amounts, and optional next deposit information.
-   * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of deposit payloads, ready to be signed and executed.
-   *
-   * @throws {Error} Throws an error if base pool information is not found for a meta-pool deposit.
-   */
-  async getDepositPayload(
-    sender: Address,
+  private async calculateDepositMinAmountOuts(
     params: DepositParams,
-    options?: { blockNumber?: number },
-  ): Promise<SenderArguments[]> {
+    simulateResults?: SimulateDepositResult[],
+  ): Promise<{
+    minAmountOut: bigint | null;
+    nextMinAmountOut: bigint | null;
+  }> {
     const parsedParams = DepositParamsSchema.parse(params);
 
-    const pools = await this.getPools(
-      [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
-    );
-    const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
-    const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+    if (!simulateResults) {
+      simulateResults = await this.simulator.deposit(params);
+    }
 
-    // Normalize allocations and meta allocation
+    if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be greater than 0');
+
+    let minAmountOut: bigint | null = null;
+    let nextMinAmountOut: bigint | null = null;
+
+    if (parsedParams.slippageTolerance) {
+      const simulateResult = simulateResults[0];
+
+      minAmountOut = calculateMinAmountOutBySlippage(simulateResult.lpTokenOut, parsedParams.slippageTolerance);
+
+      if (parsedParams.nextDeposit) {
+        const nextSimulateResult = simulateResults.at(1);
+        if (!nextSimulateResult) throw new Error('Simulate deposit result length must be 2');
+
+        nextMinAmountOut = calculateMinAmountOutBySlippage(
+          nextSimulateResult.lpTokenOut,
+          parsedParams.slippageTolerance,
+        );
+      }
+    }
+
+    return { minAmountOut, nextMinAmountOut };
+  }
+  private async calculateWithdrawMinAmountOuts(
+    params: WithdrawParams,
+    pools: PoolResponse[],
+    withdrawSingleAsset: Asset | undefined,
+    simulateResults?: SimulateWithdrawResult[],
+  ): Promise<{
+    amountOuts: Allocation[];
+    nextAmountOuts: Allocation[] | null;
+    minAmountOuts: Allocation[] | null;
+    nextMinAmountOuts: Allocation[] | null;
+  }> {
+    const parsedParams = WithdrawParamsSchema.parse(params);
+
+    const pool = pools[0];
+    const nextPool = pools.at(1);
+
+    // Get minAmountOuts if slippageTolerance is provided
+    let amountOuts: Allocation[] = [];
+    let nextAmountOuts: Allocation[] | null = null;
+    let minAmountOuts: Allocation[] | null = null;
+    let nextMinAmountOuts: Allocation[] | null = null;
+    if (!simulateResults) {
+      simulateResults = await this.simulator.withdraw(params);
+      if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
+    }
+    const simulateResult = simulateResults[0]!;
+
+    if (parsedParams.mode === 'Balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
+      throw new Error(`In balanced mode, amount out length must match pool assets length (${pool.assets.length})`);
+    }
+    if (parsedParams.mode === 'Single' && simulateResult.amountOuts.length !== 1) {
+      throw new Error('In single mode, amount out length must be 1');
+    }
+
+    // Calculate minAmountOuts based on on mode
+    if (parsedParams.mode === 'Balanced') {
+      amountOuts = Allocation.createAllocations(
+        pool.assets.map(({ asset }, i) => ({
+          asset,
+          value: simulateResult.amountOuts[i]!,
+        })),
+      );
+      if (parsedParams.slippageTolerance) {
+        minAmountOuts = Allocation.createAllocations(
+          pool.assets.map(({ asset }, i) => ({
+            asset,
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
+          })),
+        );
+      }
+    }
+    if (parsedParams.mode === 'Single') {
+      amountOuts = Allocation.createAllocations([
+        {
+          asset: withdrawSingleAsset!,
+          value: simulateResult.amountOuts[0]!,
+        },
+      ]);
+      if (parsedParams.slippageTolerance) {
+        minAmountOuts = Allocation.createAllocations([
+          {
+            asset: withdrawSingleAsset!,
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
+          },
+        ]);
+      }
+    }
+
+    if (parsedParams.nextWithdraw && nextPool) {
+      const nextLpIndex = pool.assets.findIndex(({ asset }) => asset.jettonMaster?.equals(nextPool!.address));
+      if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
+      const nextLpAmount =
+        parsedParams.mode === 'Single' ? simulateResult.amountOuts[0] : simulateResult.amountOuts[nextLpIndex];
+      if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
+      if (simulateResults.length < 2) throw new Error('Simulate withdraw result length must be greater than 1');
+
+      const nextSimulateResult = simulateResults[1]!;
+      if (
+        parsedParams.nextWithdraw.mode === 'Balanced' &&
+        nextSimulateResult.amountOuts.length !== nextPool!.assets.length
+      ) {
+        throw new Error(
+          `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
+        );
+      }
+      if (parsedParams.nextWithdraw.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
+        throw new Error('In single mode, amount out length must be 1');
+      }
+
+      // Calculate nextMinAmountOuts based on on mode
+      if (parsedParams.nextWithdraw.mode === 'Balanced') {
+        nextAmountOuts = Allocation.createAllocations(
+          nextPool.assets.map(({ asset }, i) => ({
+            asset,
+            value: nextSimulateResult.amountOuts[i],
+          })),
+        );
+        if (parsedParams.slippageTolerance) {
+          nextMinAmountOuts = Allocation.createAllocations(
+            nextPool.assets.map(({ asset }, i) => ({
+              asset,
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[i], parsedParams.slippageTolerance!),
+            })),
+          );
+        }
+      }
+      if (parsedParams.nextWithdraw.mode === 'Single') {
+        nextAmountOuts = Allocation.createAllocations([
+          {
+            asset: parsedParams.nextWithdraw.withdrawAsset!,
+            value: nextSimulateResult.amountOuts[0],
+          },
+        ]);
+        if (parsedParams.slippageTolerance) {
+          nextMinAmountOuts = Allocation.createAllocations([
+            {
+              asset: parsedParams.nextWithdraw.withdrawAsset!,
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[0], parsedParams.slippageTolerance!),
+            },
+          ]);
+        }
+      }
+    }
+
+    return { amountOuts, nextAmountOuts, minAmountOuts, nextMinAmountOuts };
+  }
+
+  private async prepareDepositAllocations(
+    params: DepositParams,
+    pools: PoolResponse[],
+  ): Promise<{
+    poolAllocations: Allocation[];
+    metaAllocation: Allocation | undefined;
+  }> {
+    const parsedParams = DepositParamsSchema.parse(params);
+    const pool = pools[0];
+    const nextPool = pools[1];
+
+    // Normalize allocations
     const poolAllocations: Allocation[] = normalize(
       parsedParams.depositAmounts,
       pool.assets.map(({ asset }) => asset),
@@ -421,31 +572,126 @@ export class TorchSDK {
       if (!metaAllocation) throw new Error(`Meta allocation is missing in next pool ${nextPool.address}`);
     }
 
-    // Calculate minAmountOut, nextMinAmountOut for the current pool and the next pool
-    let minAmountOut: bigint | null = null;
-    let nextMinAmountOut: bigint | null = null;
-    if (parsedParams.slippageTolerance) {
-      const simulateResults = await this.simulator.deposit(params);
+    return { poolAllocations, metaAllocation };
+  }
+  private prepareWithdrawAsset(
+    params: WithdrawParams,
+    nextPool: PoolResponse | undefined,
+  ): { withdrawAsset: Asset | undefined } {
+    const parsedParams = WithdrawParamsSchema.parse(params);
 
-      if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be 1');
-      const simulateResult = simulateResults[0]!;
+    let withdrawAsset: Asset | undefined =
+      parsedParams.mode === 'Single' && !parsedParams.nextWithdraw ? parsedParams.withdrawAsset : undefined;
 
-      minAmountOut = BigInt(
-        new Decimal(1 - parsedParams.slippageTolerance.toNumber()).mul(simulateResult.lpTokenOut.toString()).toFixed(0),
-      );
-
-      if (parsedParams.nextDeposit) {
-        const nextSimulateResult = simulateResults[1];
-        if (!nextSimulateResult) throw new Error('Simulate deposit result length must be 2');
-
-        nextMinAmountOut = BigInt(
-          new Decimal(1 - parsedParams.slippageTolerance.toNumber())
-            .mul(nextSimulateResult.lpTokenOut.toString())
-            .toFixed(0),
-        );
+    // Validate next withdraw requirements
+    if (parsedParams.nextWithdraw) {
+      if (!nextPool) throw new Error(`Next pool ${parsedParams.nextWithdraw?.pool} not found`);
+      // If withdrawAsset is not provided in single mode, use the next pool's LP asset
+      if (parsedParams.mode === 'Single') {
+        withdrawAsset = nextPool.lpAsset.asset;
       }
     }
 
+    return { withdrawAsset };
+  }
+
+  private async buildSwapPayload(
+    sender: Address,
+    params: SwapParams,
+    amountIn: bigint,
+    minAmountOuts: bigint[] | null,
+    hops: Hop[],
+    signedRate: SignedRate | null,
+    options?: { blockNumber?: number },
+  ): Promise<SenderArguments> {
+    const factory = this.openFactory(options?.blockNumber);
+    // Parse exact in params
+    const parsedExactInParams = ExactInParamsSchema.parse({
+      ...params,
+      mode: 'ExactIn',
+      amountIn,
+    });
+
+    const [firstHop, ...restHops] = hops;
+    if (!firstHop) throw new Error('No hops found');
+
+    // Handle different actions
+    if (firstHop.action === 'Swap') {
+      const senderArgs = await factory.getSwapPayload(sender, {
+        queryId: parsedExactInParams.queryId || (await generateQueryId()),
+        poolAddress: firstHop.pool.address,
+        assetIn: firstHop.assetIn,
+        assetOut: firstHop.assetOut,
+        amountIn: parsedExactInParams.amountIn,
+        config: {
+          deadline: parsedExactInParams.deadline,
+          minAmountOut: minAmountOuts?.at(0),
+          recipient: parsedExactInParams.recipient,
+          signedRate: signedRate,
+          fulfillPayload: parsedExactInParams.fulfillPayload,
+          rejectPayload: parsedExactInParams.rejectPayload,
+          extraPayload: undefined,
+        },
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
+      });
+      return senderArgs;
+    }
+
+    if (firstHop.action === 'Deposit') {
+      const senderArgs = await factory.getDepositPayload(sender, {
+        queryId: parsedExactInParams.queryId || (await generateQueryId()),
+        poolAddress: firstHop.pool.address,
+        poolAllocations: Allocation.createAllocations(
+          firstHop.pool.assets.map(({ asset }) => ({
+            asset,
+            value: asset.equals(firstHop.assetIn) ? parsedExactInParams.amountIn : BigInt(0),
+          })),
+        ),
+        config: {
+          minLpAmount: minAmountOuts?.at(0) ?? null,
+          signedRate: signedRate,
+          recipient: parsedExactInParams.recipient,
+          fulfillPayload: parsedExactInParams.fulfillPayload,
+          rejectPayload: parsedExactInParams.rejectPayload,
+          extraPayload: undefined,
+        },
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | DepositNext | null,
+      });
+      if (senderArgs.length === 0) throw new Error('No sender arguments found');
+      return senderArgs[0]!;
+    }
+
+    if (firstHop.action === 'Withdraw') {
+      return await factory.getWithdrawPayload(sender, {
+        queryId: parsedExactInParams.queryId || (await generateQueryId()),
+        poolAddress: firstHop.pool.address,
+        burnLpAmount: parsedExactInParams.amountIn,
+        config: {
+          mode: 'Single',
+          assetOut: firstHop.assetOut,
+          minAmountOut: minAmountOuts?.at(0) ?? null,
+        },
+        recipient: parsedExactInParams.recipient,
+        signedRate: signedRate,
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as WithdrawNext | null,
+      });
+    }
+
+    throw new Error(`Invalid action: ${firstHop.action}`);
+  }
+  private async buildDepositPayload(
+    sender: Address,
+    params: DepositParams,
+    pools: PoolResponse[],
+    poolAllocations: Allocation[],
+    metaAllocation: Allocation | undefined,
+    minAmountOut: bigint | null,
+    nextMinAmountOut: bigint | null,
+    signedRate: SignedRate | null,
+    options?: { blockNumber?: number; simulateResult?: SimulateDepositResponse },
+  ): Promise<SenderArguments[]> {
+    const parsedParams = DepositParamsSchema.parse(params);
+    const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
     const factory = this.openFactory(options?.blockNumber);
     const senderArgs = await factory.getDepositPayload(sender, {
       queryId: parsedParams.queryId || (await generateQueryId()),
@@ -470,126 +716,18 @@ export class TorchSDK {
     });
     return senderArgs;
   }
-
-  /**
-   * Generates the payload required to perform a token withdraw operation.
-   *
-   * This function parses the withdraw parameters, ensures pool data is synchronized,
-   * calculates the minimum amount of assets out if slippage tolerance is provided,
-   * retrieves necessary pool information, and generates payloads for withdraw execution.
-   * WithdrawAsset and nextWithdraw is mutually exclusive in Single Withdraw mode.
-   *
-   * @param {Address} sender - The address of the sender initiating the withdraw.
-   * @param {WithdrawParams} params - The parameters for the withdraw, including the target pool, amounts, and optional next withdraw information.
-   * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of withdraw payloads, ready to be signed and executed.
-   */
-  async getWithdrawPayload(
+  private async buildWithdrawPayload(
     sender: Address,
     params: WithdrawParams,
+    pools: PoolResponse[],
+    withdrawAsset: Asset | undefined,
+    minAmountOuts: Allocation[] | null,
+    nextMinAmountOuts: Allocation[] | null,
+    signedRate: SignedRate | null,
     options?: { blockNumber?: number },
   ): Promise<SenderArguments> {
     const parsedParams = WithdrawParamsSchema.parse(params);
-
-    const pools = await this.getPools(
-      [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
-    );
     const [pool, nextPool] = pools as [PoolResponse, PoolResponse | undefined];
-
-    const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
-
-    // Get minAmountOuts if slippageTolerance is provided
-    let minAmountOuts: Allocation[] | null = null;
-    let nextMinAmountOuts: Allocation[] | null = null;
-    let withdrawAsset: Asset | undefined =
-      parsedParams.mode === 'Single' && !parsedParams.nextWithdraw ? parsedParams.withdrawAsset : undefined;
-
-    // Validate next withdraw requirements
-    if (parsedParams.nextWithdraw) {
-      if (!nextPool) throw new Error(`Next pool ${parsedParams.nextWithdraw?.pool} not found`);
-      // If withdrawAsset is not provided in single mode, use the next pool's LP asset
-      if (parsedParams.mode === 'Single') {
-        withdrawAsset = nextPool.lpAsset.asset;
-      }
-    }
-
-    // Calculate minAmountOuts
-    if (parsedParams.slippageTolerance) {
-      const simulateResults = await this.simulator.withdraw(params);
-      if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
-      const simulateResult = simulateResults[0]!;
-
-      if (parsedParams.mode === 'Balanced' && simulateResult.amountOuts.length !== pool.assets.length) {
-        throw new Error(`In balanced mode, amount out length must match pool assets length (${pool.assets.length})`);
-      }
-      if (parsedParams.mode === 'Single' && simulateResult.amountOuts.length !== 1) {
-        throw new Error('In single mode, amount out length must be 1');
-      }
-
-      // Calculate minAmountOuts based on on mode
-      if (parsedParams.mode === 'Balanced') {
-        minAmountOuts = Allocation.createAllocations(
-          pool.assets.map(({ asset }, i) => ({
-            asset,
-            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
-          })),
-        );
-      }
-      if (parsedParams.mode === 'Single') {
-        minAmountOuts = Allocation.createAllocations([
-          {
-            asset: withdrawAsset!,
-            value: this.calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
-          },
-        ]);
-      }
-
-      if (parsedParams.nextWithdraw && nextPool) {
-        const nextLpIndex = pool.assets.findIndex(({ asset }) => asset.jettonMaster?.equals(nextPool!.address));
-        if (nextLpIndex === -1) throw new Error('Next pool LP asset not found');
-        const nextLpAmount =
-          parsedParams.mode === 'Single' ? simulateResult.amountOuts[0] : simulateResult.amountOuts[nextLpIndex];
-        if (nextLpAmount === undefined) throw new Error('Next pool LP amount not found');
-        if (simulateResults.length < 2) throw new Error('Simulate withdraw result length must be greater than 1');
-
-        const nextSimulateResult = simulateResults[1]!;
-        if (
-          parsedParams.nextWithdraw.mode === 'Balanced' &&
-          nextSimulateResult.amountOuts.length !== nextPool!.assets.length
-        ) {
-          throw new Error(
-            `In balanced mode, amount out length must match pool assets length (${nextPool!.assets.length})`,
-          );
-        }
-        if (parsedParams.nextWithdraw.mode === 'Single' && nextSimulateResult.amountOuts.length !== 1) {
-          throw new Error('In single mode, amount out length must be 1');
-        }
-
-        // Calculate nextMinAmountOuts based on on mode
-        if (parsedParams.nextWithdraw.mode === 'Balanced') {
-          nextMinAmountOuts = Allocation.createAllocations(
-            nextPool.assets.map(({ asset }, i) => ({
-              asset,
-              value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[i],
-                parsedParams.slippageTolerance!,
-              ),
-            })),
-          );
-        }
-        if (parsedParams.nextWithdraw.mode === 'Single') {
-          nextMinAmountOuts = Allocation.createAllocations([
-            {
-              asset: parsedParams.nextWithdraw.withdrawAsset!,
-              value: this.calculateMinAmountOutBySlippage(
-                nextSimulateResult.amountOuts[0],
-                parsedParams.slippageTolerance!,
-              ),
-            },
-          ]);
-        }
-      }
-    }
-
     const factory = this.openFactory(options?.blockNumber);
     const senderArgs = await factory.getWithdrawPayload(sender, {
       queryId: parsedParams.queryId || (await generateQueryId()),
@@ -630,6 +768,22 @@ export class TorchSDK {
     return senderArgs;
   }
 
+  private async getSwapRoutes(params: SwapParams): Promise<{ hops: Hop[]; routes: Address[] }> {
+    const parsedParams = SwapParamsSchema.parse(params);
+    // Get hops
+    let hops: Hop[] = [];
+    let routes: Address[] = [];
+    if (parsedParams.routes && parsedParams.routes.length > 0) {
+      const pools = await this.getPools(parsedParams.routes);
+      hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
+    } else {
+      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
+    }
+    if (hops.length === 0) throw new Error('No routes found');
+    routes = hops.map((hop) => hop.pool.address);
+    return { hops, routes };
+  }
+
   /**
    * Generates the payload required to perform a swap operation.
    *
@@ -645,161 +799,236 @@ export class TorchSDK {
     params: SwapParams,
     options?: { blockNumber?: number },
   ): Promise<SenderArguments> {
-    const parsedParams = SwapParamsSchema.parse(params);
     // Get hops
-    let hops: Hop[] = [];
-    if (parsedParams.routes && parsedParams.routes.length > 0) {
-      const pools = await this.getPools(parsedParams.routes);
-      hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
-    } else {
-      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
-      params.routes = hops.map((hop) => hop.pool.address);
-      parsedParams.routes = hops.map((hop) => hop.pool.address);
-    }
-
-    const [firstHop, ...restHops] = hops;
-    if (!firstHop) throw new Error('No hops found');
+    const { hops, routes } = await this.getSwapRoutes(params);
+    params.routes = routes;
 
     // Get signed rates
-    const signedRate = await this.api.getSignedRates(hops.map((hop) => hop.pool.address));
+    const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
 
     // Get minAmountOuts, amountOuts
     const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params);
 
-    // Parse exact in params
+    // Build swap payload
+    return this.buildSwapPayload(sender, params, amountIn, minAmountOuts, hops, signedRate, options);
+  }
+
+  /**
+   * Generates the payload required to perform a token deposit operation.
+   *
+   * This function parses the deposit parameters, ensures pool data is synchronized,
+   * calculates the minimum amount of LP tokens out if slippage tolerance is provided,
+   * retrieves necessary pool information, and generates payloads for deposit execution.
+   *
+   * @param {Address} sender - The address of the sender initiating the deposit.
+   * @param {DepositParams} params - The parameters for the deposit, including the target pool, amounts, and optional next deposit information.
+   * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of deposit payloads, ready to be signed and executed.
+   *
+   * @throws {Error} Throws an error if base pool information is not found for a meta-pool deposit.
+   */
+  async getDepositPayload(
+    sender: Address,
+    params: DepositParams,
+    options?: { blockNumber?: number },
+  ): Promise<SenderArguments[]> {
+    const parsedParams = DepositParamsSchema.parse(params);
+
+    // Get pools
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextDeposit?.pool].filter((pool) => pool !== undefined),
+    );
+
+    // Calculate minAmountOut, nextMinAmountOut
+    const { minAmountOut, nextMinAmountOut } = await this.calculateDepositMinAmountOuts(params);
+
+    // Get signed rates
+    const signedRate = await this.getSignedRatesGivenPools(pools);
+
+    // Prepare pool allocations
+    const { poolAllocations, metaAllocation } = await this.prepareDepositAllocations(params, pools);
+
+    // Calculate minAmountOut, nextMinAmountOut for the current pool and the next pool
+    return this.buildDepositPayload(
+      sender,
+      params,
+      pools,
+      poolAllocations,
+      metaAllocation,
+      minAmountOut,
+      nextMinAmountOut,
+      signedRate,
+      options,
+    );
+  }
+
+  /**
+   * Generates the payload required to perform a token withdraw operation.
+   *
+   * This function parses the withdraw parameters, ensures pool data is synchronized,
+   * calculates the minimum amount of assets out if slippage tolerance is provided,
+   * retrieves necessary pool information, and generates payloads for withdraw execution.
+   * WithdrawAsset and nextWithdraw is mutually exclusive in Single Withdraw mode.
+   *
+   * @param {Address} sender - The address of the sender initiating the withdraw.
+   * @param {WithdrawParams} params - The parameters for the withdraw, including the target pool, amounts, and optional next withdraw information.
+   * @returns {Promise<SenderArguments[]>} - A promise that resolves to an array of withdraw payloads, ready to be signed and executed.
+   */
+  async getWithdrawPayload(
+    sender: Address,
+    params: WithdrawParams,
+    options?: { blockNumber?: number },
+  ): Promise<SenderArguments> {
+    const parsedParams = WithdrawParamsSchema.parse(params);
+
+    const pools = await this.getPools(
+      [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
+    );
+
+    const signedRate = await this.getSignedRatesGivenPools(pools);
+
+    // Prepare withdrawAsset
+    const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
+
+    // Calculate minAmountOuts
+    const { minAmountOuts, nextMinAmountOuts } = await this.calculateWithdrawMinAmountOuts(
+      params,
+      pools,
+      withdrawAsset,
+    );
+
+    // Build withdraw payload
+    return this.buildWithdrawPayload(
+      sender,
+      params,
+      pools,
+      withdrawAsset,
+      minAmountOuts,
+      nextMinAmountOuts,
+      signedRate,
+      options,
+    );
+  }
+
+  private getAssetResponseFromPool(pool: PoolResponse, asset: Asset): AssetResponse {
+    const poolAssets = pool.assets.concat(pool.lpAsset);
+    const assetInfo = poolAssets.find(({ asset: assetInfo }) => assetInfo.equals(asset));
+    if (!assetInfo) throw new Error('Asset not found in pool');
+    return assetInfo;
+  }
+  /**
+   * Simulates a swap operation and returns detailed information about the expected outcome
+   *
+   * @param params - The swap parameters
+   * @returns A promise that resolves to the simulation response containing output amounts and execution details
+   * @example
+   * ```ts
+   * const { result, getSwapPayload } = await torchSDK.simulateSwap({
+   *   mode: 'ExactIn',
+   *   assetIn: PoolAssets.tsTONAsset,
+   *   assetOut: PoolAssets.stTONAsset,
+   *   amountIn: toNano('0.05'), // 0.05 tsTON
+   * });
+   * // Show result
+   * console.log(`Estimated amount out: ${result.amountOut}`);
+   * console.log(`Min amount out: ${result.minAmountOut}`);
+   * console.log(`Execution price: ${result.executionPrice}`);
+   * // Send Swap
+   * const senderArgs = await getSwapPayload(userWalletAddress, {blockNumber: 123456});
+   * await send(senderArgs);
+   * ```
+   */
+  async simulateSwap(params: SwapParams): Promise<{
+    result: SimulateSwapResponse;
+    getSwapPayload: (address: Address, options?: { blockNumber?: number }) => Promise<SenderArguments>;
+  }> {
+    const parsedParams = SwapParamsSchema.parse(params);
+
+    // Get hops
+    const { hops, routes } = await this.getSwapRoutes(params);
+    params.routes = routes;
+
+    // Get inDecimals, outDecimals
+    const inDecimals = this.getAssetResponseFromPool(hops[0].pool, parsedParams.assetIn).decimals;
+    const outDecimals = this.getAssetResponseFromPool(hops[hops.length - 1].pool, parsedParams.assetOut).decimals;
+
+    if (!inDecimals || !outDecimals) throw new Error('InDecimals or OutDecimals not found');
+
+    // Simulate swap
+    const simulateResults = await this.simulator.swap(params);
+    if (simulateResults.length !== routes.length) {
+      throw new Error(
+        `Simulate swap result length must match routes length: ${simulateResults.length} !== ${routes.length}`,
+      );
+    }
+
+    // Calculate minAmountOuts
+    const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params, simulateResults);
+
+    if (!simulateResults.every((result) => result.mode === parsedParams.mode))
+      throw new Error('Simulate swap result mode must match swap mode');
+
+    // Build swap payload
     const parsedExactInParams = ExactInParamsSchema.parse({
       ...parsedParams,
       mode: 'ExactIn',
       amountIn,
     });
 
-    // Open factory
-    const factory = this.openFactory(options?.blockNumber);
-
-    // Handle different actions
-    if (firstHop.action === 'Swap') {
-      const senderArgs = await factory.getSwapPayload(sender, {
-        queryId: parsedParams.queryId || (await generateQueryId()),
-        poolAddress: firstHop.pool.address,
-        assetIn: firstHop.assetIn,
-        assetOut: firstHop.assetOut,
-        amountIn: parsedExactInParams.amountIn,
-        config: {
-          deadline: parsedParams.deadline,
-          minAmountOut: minAmountOuts?.at(0),
-          recipient: parsedParams.recipient,
-          signedRate: signedRate,
-          fulfillPayload: parsedParams.fulfillPayload,
-          rejectPayload: parsedParams.rejectPayload,
-          extraPayload: undefined,
-        },
-        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
-      });
-      return senderArgs;
-    }
-
-    if (firstHop.action === 'Deposit') {
-      const senderArgs = await factory.getDepositPayload(sender, {
-        queryId: parsedParams.queryId || (await generateQueryId()),
-        poolAddress: firstHop.pool.address,
-        poolAllocations: Allocation.createAllocations(
-          firstHop.pool.assets.map(({ asset }) => ({
-            asset,
-            value: asset.equals(firstHop.assetIn) ? parsedExactInParams.amountIn : BigInt(0),
-          })),
-        ),
-        config: {
-          minLpAmount: minAmountOuts?.at(0) ?? null,
-          signedRate: signedRate,
-          recipient: parsedParams.recipient,
-          fulfillPayload: parsedParams.fulfillPayload,
-          rejectPayload: parsedParams.rejectPayload,
-          extraPayload: undefined,
-        },
-        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | DepositNext | null,
-      });
-      if (senderArgs.length === 0) throw new Error('No sender arguments found');
-      return senderArgs[0]!;
-    }
-
-    if (firstHop.action === 'Withdraw') {
-      return await factory.getWithdrawPayload(sender, {
-        queryId: parsedParams.queryId || (await generateQueryId()),
-        poolAddress: firstHop.pool.address,
-        burnLpAmount: parsedExactInParams.amountIn,
-        config: {
-          mode: 'Single',
-          assetOut: firstHop.assetOut,
-          minAmountOut: minAmountOuts?.at(0) ?? null,
-        },
-        recipient: parsedParams.recipient,
-        signedRate: signedRate,
-        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as WithdrawNext | null,
-      });
-    }
-
-    throw new Error(`Invalid action: ${firstHop.action}`);
-  }
-
-  /**
-   * Simulates a swap operation and returns detailed information about the expected outcome
-   *
-   * @param params - The swap parameters
-   * @returns A promise that resolves to the simulation response containing output amounts and execution details
-   */
-  async simulateSwap(params: SwapParams): Promise<SimulateSwapResponse> {
-    const parsedParams = SwapParamsSchema.parse(params);
-
-    // Get hops
-    let hops: Hop[] = [];
-    if (parsedParams.routes && parsedParams.routes.length > 0) {
-      const pools = await this.getPools(parsedParams.routes);
-      hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
-    } else {
-      hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
-      params.routes = hops.map((hop) => hop.pool.address);
-      parsedParams.routes = hops.map((hop) => hop.pool.address);
-    }
-
-    // Get inDecimals, outDecimals
-    const inDecimals = hops[0].pool.assets.find(({ asset }) => asset.equals(parsedParams.assetIn))?.decimals;
-    const outDecimals = hops[hops.length - 1].pool.assets.find(({ asset }) =>
-      asset.equals(parsedParams.assetOut),
-    )?.decimals;
-
-    if (!inDecimals || !outDecimals) throw new Error('InDecimals or OutDecimals not found');
-
-    // Calculate minAmountOuts
-    const { amountIn, amountOuts, minAmountOuts, rawSimulateResults } = await this.calculateSwapMinAmountOuts(params);
-
-    if (!rawSimulateResults.every((result) => result.mode === parsedParams.mode))
-      throw new Error('Simulate swap result mode must match swap mode');
-
     if (parsedParams.mode === 'ExactIn') {
-      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      const lastDetail = simulateResults[simulateResults.length - 1]!;
       if (lastDetail.mode !== 'ExactIn') throw new Error('Last detail must be ExactIn');
       return {
-        mode: 'ExactIn',
-        amountOut: amountOuts[0],
-        minAmountOut: minAmountOuts?.at(0),
-        details: rawSimulateResults as SimulateSwapExactInResult[],
-        executionPrice: this.calculateExecutionPrice(
-          { amount: amountIn, decimals: inDecimals },
-          { amount: amountOuts[0], decimals: outDecimals },
-        ),
+        result: {
+          mode: 'ExactIn',
+          routes,
+          amountOut: lastDetail.amountOut,
+          minAmountOut: minAmountOuts?.at(minAmountOuts.length - 1),
+          details: simulateResults as SimulateSwapExactInResult[],
+          executionPrice: calculateExecutionPrice(
+            { amount: amountIn, decimals: inDecimals },
+            { amount: lastDetail.amountOut, decimals: outDecimals },
+          ),
+        },
+        getSwapPayload: async (address: Address, options?: { blockNumber?: number }) => {
+          const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
+          return this.buildSwapPayload(
+            address,
+            parsedExactInParams,
+            amountIn,
+            minAmountOuts,
+            hops,
+            signedRate,
+            options,
+          );
+        },
       };
     } else {
-      const lastDetail = rawSimulateResults[rawSimulateResults.length - 1]!;
+      const lastDetail = simulateResults[simulateResults.length - 1]!;
       if (lastDetail.mode !== 'ExactOut') throw new Error('Last detail must be ExactOut');
       return {
-        mode: 'ExactOut',
-        amountIn: amountIn,
-        minAmountOut: minAmountOuts?.at(0),
-        details: rawSimulateResults as SimulateSwapExactOutResult[],
-        executionPrice: this.calculateExecutionPrice(
-          { amount: amountIn, decimals: inDecimals },
-          { amount: parsedParams.amountOut, decimals: outDecimals },
-        ),
+        result: {
+          mode: 'ExactOut',
+          routes,
+          amountIn: amountIn,
+          minAmountOut: minAmountOuts?.at(0),
+          details: simulateResults as SimulateSwapExactOutResult[],
+          executionPrice: calculateExecutionPrice(
+            { amount: amountIn, decimals: inDecimals },
+            { amount: parsedParams.amountOut, decimals: outDecimals },
+          ),
+        },
+        getSwapPayload: async (address: Address, options?: { blockNumber?: number }) => {
+          const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
+          return this.buildSwapPayload(
+            address,
+            parsedExactInParams,
+            amountIn,
+            minAmountOuts,
+            hops,
+            signedRate,
+            options,
+          );
+        },
       };
     }
   }
@@ -809,8 +1038,29 @@ export class TorchSDK {
    *
    * @param params - The deposit parameters
    * @returns A promise that resolves to the simulation response containing LP token amounts and execution details
+   * @example
+   * ```ts
+   * const { result, getDepositPayload } = await torchSDK.simulateDeposit({
+   *   pool: Address.parse("TriTon Pool Address"),
+   *   depositAmounts: [
+   *     { asset: Address.parse("tsTON Address"), amount: toNano('0.05') }, // 0.05 tsTON
+   *     { asset: Address.parse("stTON Address"), amount: toNano('0.05') }, // 0.05 stTON
+   *     { asset: Address.parse("TON Address"), amount: toNano('100') }, // 0.05 TON
+   *   ],
+   * });
+   * // Show result
+   * console.log(`Estimated LP token out: ${result.lpTokenOut}`);
+   * console.log(`Min LP token out: ${result.minLpTokenOut}`);
+   * console.log(`LP total supply after: ${result.lpTotalSupplyAfter}`);
+   * // Send Deposit
+   * const senderArgs = await getDepositPayload(userWalletAddress, {blockNumber: 123456});
+   * await send(senderArgs);
+   * ```
    */
-  async simulateDeposit(params: DepositParams): Promise<SimulateDepositResponse> {
+  async simulateDeposit(params: DepositParams): Promise<{
+    result: SimulateDepositResponse;
+    getDepositPayload: (address: Address, options?: { blockNumber?: number }) => Promise<SenderArguments[]>;
+  }> {
     const parsedParams = DepositParamsSchema.parse(params);
 
     // Get pools and rates
@@ -826,15 +1076,41 @@ export class TorchSDK {
       );
     }
 
-    const lastSimulateResult = simulateResults[simulateResults.length - 1]!;
+    // Build deposit payload
+    const lastSimulateResult = simulateResults[simulateResults.length - 1];
 
     return {
-      lpTokenOut: lastSimulateResult.lpTokenOut,
-      lpTotalSupplyAfter: lastSimulateResult.lpTotalSupply,
-      minLpTokenOut: parsedParams.slippageTolerance
-        ? this.calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
-        : undefined,
-      details: simulateResults,
+      result: {
+        lpTokenOut: lastSimulateResult.lpTokenOut,
+        lpTotalSupplyAfter: lastSimulateResult.lpTotalSupply,
+        minLpTokenOut: parsedParams.slippageTolerance
+          ? calculateMinAmountOutBySlippage(lastSimulateResult.lpTokenOut, parsedParams.slippageTolerance)
+          : undefined,
+        details: simulateResults,
+      },
+      getDepositPayload: async (sender: Address, options?: { blockNumber?: number }) => {
+        // Get signed rates
+        const signedRate = await this.getSignedRatesGivenPools(pools);
+
+        // Prepare pool allocations
+        const { poolAllocations, metaAllocation } = await this.prepareDepositAllocations(params, pools);
+
+        // Calculate minAmountOut, nextMinAmountOut
+        const { minAmountOut, nextMinAmountOut } = await this.calculateDepositMinAmountOuts(params, simulateResults);
+
+        // Build deposit payload
+        return this.buildDepositPayload(
+          sender,
+          params,
+          pools,
+          poolAllocations,
+          metaAllocation,
+          minAmountOut,
+          nextMinAmountOut,
+          signedRate,
+          options,
+        );
+      },
     };
   }
 
@@ -844,7 +1120,10 @@ export class TorchSDK {
    * @param params - The withdraw parameters
    * @returns A promise that resolves to the simulation response containing output amounts and execution details
    */
-  async simulateWithdraw(params: WithdrawParams): Promise<SimulateWithdrawResponse> {
+  async simulateWithdraw(params: WithdrawParams): Promise<{
+    result: SimulateWithdrawResponse;
+    getWithdrawPayload: (address: Address, options?: { blockNumber?: number }) => Promise<SenderArguments>;
+  }> {
     const parsedParams = WithdrawParamsSchema.parse(params);
 
     // Get pools and rates
@@ -860,69 +1139,39 @@ export class TorchSDK {
       );
     }
 
-    const [withdrawResult, nextWithdrawResult] = simulateResults;
-    const [pool, nextPool] = pools;
+    // Prepare withdrawAsset
+    const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
 
-    // Collect all amountOuts from all simulation results
-    let amountOuts: Allocation[] = [];
-    let minAmountOuts: Allocation[] | undefined;
+    // Calculate minAmountOuts
+    const { amountOuts, nextAmountOuts, minAmountOuts, nextMinAmountOuts } = await this.calculateWithdrawMinAmountOuts(
+      params,
+      pools,
+      withdrawAsset,
+      simulateResults,
+    );
 
-    // First withdraw
-    if (parsedParams.mode === 'Balanced') {
-      amountOuts = amountOuts.concat(
-        withdrawResult.amountOuts
-          .map((amountOut, i) => {
-            // If next withdraw is provided, skip base lp asset (nextPool.lpAsset)
-            if (parsedParams.nextWithdraw && pool.assets[i].asset.equals(nextPool.lpAsset.asset)) return;
-            return new Allocation({
-              asset: pool.assets[i].asset,
-              value: amountOut,
-            });
-          })
-          .filter((allocation): allocation is Allocation => allocation !== undefined),
-      );
-    } else {
-      if (withdrawResult.amountOuts.length !== 1) throw new Error('First withdraw result must have 1 amount out');
-      // If next withdraw is provided, skip
-      if (!parsedParams.nextWithdraw) {
-        amountOuts.push(new Allocation({ asset: parsedParams.withdrawAsset, value: withdrawResult.amountOuts[0] }));
-      }
-    }
-
-    // Next withdraw
-    if (parsedParams.nextWithdraw) {
-      if (parsedParams.nextWithdraw.mode === 'Balanced') {
-        amountOuts = amountOuts.concat(
-          nextWithdrawResult.amountOuts.map(
-            (amountOut, i) =>
-              new Allocation({
-                asset: nextPool.assets[i].asset,
-                value: amountOut,
-              }),
-          ),
-        );
-      } else {
-        if (nextWithdrawResult.amountOuts.length !== 1) throw new Error('Next withdraw result must have 1 amount out');
-        amountOuts.push(
-          new Allocation({ asset: parsedParams.nextWithdraw.withdrawAsset!, value: nextWithdrawResult.amountOuts[0] }),
-        );
-      }
-    }
-
-    // Calculate minAmountOuts if slippage tolerance is provided
-    if (parsedParams.slippageTolerance) {
-      minAmountOuts = Allocation.createAllocations(
-        amountOuts.map((allocation) => ({
-          asset: allocation.asset,
-          value: this.calculateMinAmountOutBySlippage(allocation.value, parsedParams.slippageTolerance!),
-        })),
-      );
-    }
-
+    // Build withdraw payload
     return {
-      amountOuts,
-      minAmountOuts,
-      details: simulateResults,
+      result: {
+        amountOuts: amountOuts.concat(nextAmountOuts ?? []),
+        minAmountOuts: (minAmountOuts ?? []).concat(nextMinAmountOuts ?? []),
+        details: simulateResults,
+      },
+      getWithdrawPayload: async (address: Address, options?: { blockNumber?: number }) => {
+        const signedRate = await this.getSignedRatesGivenPools(pools);
+        const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
+
+        return this.buildWithdrawPayload(
+          address,
+          params,
+          pools,
+          withdrawAsset,
+          minAmountOuts,
+          nextMinAmountOuts,
+          signedRate,
+          options,
+        );
+      },
     };
   }
 }
