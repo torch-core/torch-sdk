@@ -84,6 +84,10 @@ export class TorchSDK {
     return this.tonClient.open(this.factoryContract);
   }
 
+  async setPools(pools: PoolResponse[]): Promise<void> {
+    this.cachedPools = pools;
+  }
+
   /**
    * Synchronizes the pool information with the latest data from the API
    *
