@@ -901,6 +901,22 @@ export class TorchSDK {
    *
    * @param params - The swap parameters
    * @returns A promise that resolves to the simulation response containing output amounts and execution details
+   * @example
+   * ```ts
+   * const { result, getSwapPayload } = await torchSDK.simulateSwap({
+   *   mode: 'ExactIn',
+   *   assetIn: PoolAssets.tsTONAsset,
+   *   assetOut: PoolAssets.stTONAsset,
+   *   amountIn: toNano('0.05'), // 0.05 tsTON
+   * });
+   * // Show result
+   * console.log(`Estimated amount out: ${result.amountOut}`);
+   * console.log(`Min amount out: ${result.minAmountOut}`);
+   * console.log(`Execution price: ${result.executionPrice}`);
+   * // Send Swap
+   * const senderArgs = await getSwapPayload(userWalletAddress, {blockNumber: 123456});
+   * await send(senderArgs);
+   * ```
    */
   async simulateSwap(params: SwapParams): Promise<{
     result: SimulateSwapResponse;
