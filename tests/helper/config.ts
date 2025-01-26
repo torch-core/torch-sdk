@@ -23,10 +23,12 @@ export abstract class PoolAssets {
   static readonly USDC_ASSET = Asset.jetton(Address.parse('EQARxQlZfQUxhTcCRg4QraCtxmvw1GoGOeEanbcc55wLZg3E'));
   static readonly CRV_USD_ASSET = Asset.jetton(Address.parse('EQC76HKO16zcESvqLzDXpV98uRNiPDl_TO-g6794VMDGbbNZ'));
   static readonly SCRV_USD_ASSET = Asset.jetton(Address.parse('EQBN8qMhmCS2yj9a7KqRJTGPv8AZmfsBnRrw3ClODwpyus8v'));
+  static readonly TRI_USD_ASSET = Asset.jetton(PoolConfig.TRI_USD_POOL_ADDRESS);
+  static readonly QUA_USD_ASSET = Asset.jetton(PoolConfig.QUA_USD_POOL_ADDRESS);
 }
 
 export abstract class MockSettings {
-  static readonly emulateBlockSeq = 27478252;
+  static readonly emulateBlockSeq = 27487889;
   static readonly sender = Address.parse('0QAHg-2Oy8Mc2BfENEaBcoDNXvHCu7mc28KkPIks8ZVqwmzg');
 }
 

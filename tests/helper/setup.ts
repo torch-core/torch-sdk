@@ -1,6 +1,6 @@
 import { Blockchain, internal, RemoteBlockchainStorage, wrapTonClient4ForRemote } from '@ton/sandbox';
 import { JettonMaster, JettonWallet, SenderArguments, toNano, TonClient4 } from '@ton/ton';
-import { SwapParams, TorchSDK } from '../src';
+import { SwapParams, TorchSDK } from '../../src';
 import { FactoryConfig, MockSettings, PoolAssets, PoolConfig } from './config';
 import { Factory, Pool } from '@torch-finance/dex-contract-wrapper';
 import { Asset } from '@torch-finance/core';
@@ -98,7 +98,6 @@ export const initialize = async () => {
           body: arg.body!,
         }),
       );
-      // printTransactionFees(r.transactions);
     }
   };
 
