@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { DepositParams, TorchSDK } from '../src';
+import { DepositParams, TorchSDK, toUnit } from '../src';
 import { initialize } from './setup';
-import { PoolAssets } from './config';
+import { Decimals, PoolAssets } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { JettonWallet } from '@ton/ton';
 import {
@@ -24,6 +24,8 @@ describe('Deposit Testcases', () => {
   let initBlockchainState: BlockchainSnapshot;
   let triTONPool: SandboxContract<Pool>;
   let quaTONPool: SandboxContract<Pool>;
+  let triUSDPool: SandboxContract<Pool>;
+  // let quaUSDPool: SandboxContract<Pool>;
 
   // Sender Jetton Wallet
   let senderStTONWallet: SandboxContract<JettonWallet>;
@@ -31,6 +33,12 @@ describe('Deposit Testcases', () => {
   let senderHTONWallet: SandboxContract<JettonWallet>;
   let senderTriTONWallet: SandboxContract<JettonWallet>;
   let senderQuaTONWallet: SandboxContract<JettonWallet>;
+  // let senderUSDTWallet: SandboxContract<JettonWallet>;
+  // let senderUSDCWallet: SandboxContract<JettonWallet>;
+  // let senderCrvUSDWallet: SandboxContract<JettonWallet>;
+  // let senderScrvUSDWallet: SandboxContract<JettonWallet>;
+  // let senderTriUSDWallet: SandboxContract<JettonWallet>;
+  // let senderQuaUSDWallet: SandboxContract<JettonWallet>;
 
   // Recipient Jetton Wallet
   let recipientTriTONWallet: SandboxContract<JettonWallet>;
@@ -43,15 +51,21 @@ describe('Deposit Testcases', () => {
   let senderHTONBalBefore: bigint;
   let senderTriTONBalBefore: bigint;
   let senderQuaTONBalBefore: bigint;
+  // let senderUSDTBalBefore: bigint;
+  // let senderUSDCBalBefore: bigint;
+  // let senderCRVUSDBalBefore: bigint;
+  // let senderSCRVUSDBalBefore: bigint;
+  // let senderTriUSDBalBefore: bigint;
+  // let senderQuaUSDBalBefore: bigint;
 
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
 
   const depositImpactTriTON = async (
     depositAmounts: Allocation[] = Allocation.createAllocations([
-      { asset: PoolAssets.tonAsset, value: toNano('100') },
-      { asset: PoolAssets.tsTONAsset, value: toNano('11') },
-      { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+      { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+      { asset: PoolAssets.TS_TON_ASSET, value: toNano('11') },
+      { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
     ]),
   ) => {
     const depositFluctuateParams: DepositParams = {
@@ -77,11 +91,19 @@ describe('Deposit Testcases', () => {
       sender,
       triTONPool,
       quaTONPool,
+      triUSDPool,
+      // quaUSDPool,
       senderStTONWallet,
       senderTsTONWallet,
       senderHTONWallet,
+      // senderUSDTWallet,
+      // senderUSDCWallet,
+      // senderCrvUSDWallet,
+      // senderScrvUSDWallet,
       senderTriTONWallet,
       senderQuaTONWallet,
+      // senderTriUSDWallet,
+      // senderQuaUSDWallet,
       send,
     } = await initialize());
     recipient = await blockchain.treasury('recipient');
@@ -105,6 +127,12 @@ describe('Deposit Testcases', () => {
     senderHTONBalBefore = await senderHTONWallet.getBalance();
     senderTriTONBalBefore = await senderTriTONWallet.getBalance();
     senderQuaTONBalBefore = await senderQuaTONWallet.getBalance();
+    // senderUSDTBalBefore = await senderUSDTWallet.getBalance();
+    // senderUSDCBalBefore = await senderUSDCWallet.getBalance();
+    // senderCRVUSDBalBefore = await senderCrvUSDWallet.getBalance();
+    // senderSCRVUSDBalBefore = await senderScrvUSDWallet.getBalance();
+    // senderTriUSDBalBefore = await senderTriUSDWallet.getBalance();
+    // senderQuaUSDBalBefore = await senderQuaUSDWallet.getBalance();
   });
 
   describe('Deposit in TriTON Pool', () => {
@@ -118,9 +146,9 @@ describe('Deposit Testcases', () => {
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts: Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('1') },
-          { asset: PoolAssets.tsTONAsset, value: toNano('1') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+          { asset: PoolAssets.TS_TON_ASSET, value: toNano('1') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
         ]),
       };
 
@@ -139,9 +167,9 @@ describe('Deposit Testcases', () => {
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts: Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.tsTONAsset, value: toNano('11') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.TS_TON_ASSET, value: toNano('11') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]),
         slippageTolerance: 0.01,
       };
@@ -172,8 +200,8 @@ describe('Deposit Testcases', () => {
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts: Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('1') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
         ]),
       };
 
@@ -191,8 +219,8 @@ describe('Deposit Testcases', () => {
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts: Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]),
         slippageTolerance: 0.01,
       };
@@ -219,8 +247,8 @@ describe('Deposit Testcases', () => {
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts: Allocation.createAllocations([
-          { asset: PoolAssets.tsTONAsset, value: toNano('1') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1') },
+          { asset: PoolAssets.TS_TON_ASSET, value: toNano('1') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
         ]),
       };
 
@@ -236,8 +264,8 @@ describe('Deposit Testcases', () => {
     it('should refund tsTON and stTON when slippage is not met', async () => {
       // Build deposit params
       const depositAmounts = Allocation.createAllocations([
-        { asset: PoolAssets.tsTONAsset, value: toNano('100') },
-        { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+        { asset: PoolAssets.TS_TON_ASSET, value: toNano('100') },
+        { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
       ]);
       const depositParams: DepositParams = {
         pool: triTONPool.address,
@@ -264,7 +292,7 @@ describe('Deposit Testcases', () => {
       // Build deposit params
       const depositParams: DepositParams = {
         pool: triTONPool.address,
-        depositAmounts: new Allocation({ asset: PoolAssets.tonAsset, value: toNano('1') }),
+        depositAmounts: new Allocation({ asset: PoolAssets.TON_ASSET, value: toNano('1') }),
       };
 
       // Send deposit
@@ -277,7 +305,7 @@ describe('Deposit Testcases', () => {
 
     it('should refund TON when slippage is not met', async () => {
       // Build deposit params
-      const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.tonAsset, value: toNano('100') }]);
+      const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.TON_ASSET, value: toNano('100') }]);
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts,
@@ -305,7 +333,7 @@ describe('Deposit Testcases', () => {
       // Build deposit params
       const depositParams: DepositParams = {
         pool: triTONPool.address,
-        depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+        depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
       };
 
       // Send deposit
@@ -318,7 +346,7 @@ describe('Deposit Testcases', () => {
 
     it('should refund stTON when slippage is not met', async () => {
       // Build deposit params
-      const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.stTONAsset, value: toNano('100') }]);
+      const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.ST_TON_ASSET, value: toNano('100') }]);
       const depositParams: DepositParams = {
         pool: triTONPool.address,
         depositAmounts,
@@ -343,7 +371,7 @@ describe('Deposit Testcases', () => {
       // Build deposit params
       const depositParams: DepositParams = {
         pool: triTONPool.address,
-        depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+        depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
         recipient: recipient.address,
       };
 
@@ -374,13 +402,13 @@ describe('Deposit Testcases', () => {
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts: Allocation.createAllocations([
-            { asset: PoolAssets.tonAsset, value: toNano('1') },
-            { asset: PoolAssets.tsTONAsset, value: toNano('1') },
-            { asset: PoolAssets.stTONAsset, value: toNano('1') },
+            { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.TS_TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
           ]),
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
         };
 
@@ -398,16 +426,16 @@ describe('Deposit Testcases', () => {
       it('should refund TON, tsTON, stTON and hTON when slippage is not met', async () => {
         // Build deposit params
         const depositAmounts = Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.tsTONAsset, value: toNano('11') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.TS_TON_ASSET, value: toNano('11') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
           slippageTolerance: 0.01,
         };
@@ -437,12 +465,12 @@ describe('Deposit Testcases', () => {
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts: Allocation.createAllocations([
-            { asset: PoolAssets.tonAsset, value: toNano('1') },
-            { asset: PoolAssets.stTONAsset, value: toNano('1') },
+            { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
           ]),
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
         };
 
@@ -459,15 +487,15 @@ describe('Deposit Testcases', () => {
       it('should refund TON, stTON and hTON when slippage is not met', async () => {
         // Build deposit params
         const depositAmounts = Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
           slippageTolerance: 0.01,
         };
@@ -495,10 +523,10 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.tonAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
         };
 
@@ -513,13 +541,13 @@ describe('Deposit Testcases', () => {
 
       it('should refund TON and hTON when slippage is not met', async () => {
         // Build deposit params
-        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.tonAsset, value: toNano('100') }]);
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.TON_ASSET, value: toNano('100') }]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
           slippageTolerance: 0.01,
         };
@@ -546,10 +574,10 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
         };
 
@@ -564,13 +592,13 @@ describe('Deposit Testcases', () => {
 
       it('should refund stTON and hTON when slippage is not met', async () => {
         // Build deposit params
-        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.stTONAsset, value: toNano('100') }]);
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.ST_TON_ASSET, value: toNano('100') }]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
           slippageTolerance: 0.01,
         };
@@ -596,10 +624,10 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
-            depositAmounts: new Allocation({ asset: PoolAssets.hTONAsset, value: toNano('1') }),
+            depositAmounts: new Allocation({ asset: PoolAssets.HTON_ASSET, value: toNano('1') }),
           },
           recipient: recipient.address,
         };
@@ -626,9 +654,9 @@ describe('Deposit Testcases', () => {
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts: Allocation.createAllocations([
-            { asset: PoolAssets.tonAsset, value: toNano('1') },
-            { asset: PoolAssets.tsTONAsset, value: toNano('1') },
-            { asset: PoolAssets.stTONAsset, value: toNano('1') },
+            { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.TS_TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
           ]),
           nextDeposit: {
             pool: quaTONPool.address,
@@ -648,9 +676,9 @@ describe('Deposit Testcases', () => {
       it('should refund TON, tsTON and stTON when slippage is not met', async () => {
         // Build deposit params
         const depositAmounts = Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.tsTONAsset, value: toNano('11') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.TS_TON_ASSET, value: toNano('11') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
@@ -683,8 +711,8 @@ describe('Deposit Testcases', () => {
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts: Allocation.createAllocations([
-            { asset: PoolAssets.tonAsset, value: toNano('1') },
-            { asset: PoolAssets.stTONAsset, value: toNano('1') },
+            { asset: PoolAssets.TON_ASSET, value: toNano('1') },
+            { asset: PoolAssets.ST_TON_ASSET, value: toNano('1') },
           ]),
           nextDeposit: {
             pool: quaTONPool.address,
@@ -703,8 +731,8 @@ describe('Deposit Testcases', () => {
       it('should refund TON and stTON when slippage is not met', async () => {
         // Build deposit params
         const depositAmounts = Allocation.createAllocations([
-          { asset: PoolAssets.tonAsset, value: toNano('100') },
-          { asset: PoolAssets.stTONAsset, value: toNano('1.1') },
+          { asset: PoolAssets.TON_ASSET, value: toNano('100') },
+          { asset: PoolAssets.ST_TON_ASSET, value: toNano('1.1') },
         ]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
@@ -735,7 +763,7 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.tonAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
           },
@@ -751,7 +779,7 @@ describe('Deposit Testcases', () => {
 
       it('should refund TON when slippage is not met', async () => {
         // Build deposit params
-        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.tonAsset, value: toNano('100') }]);
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.TON_ASSET, value: toNano('100') }]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
@@ -778,7 +806,7 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
           },
@@ -797,7 +825,7 @@ describe('Deposit Testcases', () => {
         // Build deposit params
         const depositParams: DepositParams = {
           pool: triTONPool.address,
-          depositAmounts: new Allocation({ asset: PoolAssets.stTONAsset, value: toNano('1') }),
+          depositAmounts: new Allocation({ asset: PoolAssets.ST_TON_ASSET, value: toNano('1') }),
           nextDeposit: {
             pool: quaTONPool.address,
           },
@@ -820,7 +848,7 @@ describe('Deposit Testcases', () => {
 
       it('should refund stTON when slippage is not met', async () => {
         // Build deposit params
-        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.stTONAsset, value: toNano('100') }]);
+        const depositAmounts = Allocation.createAllocations([{ asset: PoolAssets.ST_TON_ASSET, value: toNano('100') }]);
         const depositParams: DepositParams = {
           pool: triTONPool.address,
           depositAmounts,
@@ -845,6 +873,24 @@ describe('Deposit Testcases', () => {
 
         senderQuaTONBalBefore = 0n; // This is for pass the afterEach check
       });
+    });
+  });
+
+  describe('Deposit in USD Pool', () => {
+    it('should deposit USDT, USDC and CRV_USD to triUSDPool', async () => {
+      // Build deposit params
+      const depositParams: DepositParams = {
+        pool: triUSDPool.address,
+        depositAmounts: Allocation.createAllocations([
+          { asset: PoolAssets.USDT_ASSET, value: toUnit(1, Decimals.USDT_DECIMALS) },
+          { asset: PoolAssets.USDC_ASSET, value: toUnit(1, Decimals.USDC_DECIMALS) },
+          { asset: PoolAssets.CRV_USD_ASSET, value: toUnit(1, Decimals.CRV_USD_DECIMALS) },
+        ]),
+      };
+
+      // Send deposit
+      const sendDepositArgs = await torchSDK.getDepositPayload(sender, depositParams);
+      await send(sendDepositArgs);
     });
   });
 });

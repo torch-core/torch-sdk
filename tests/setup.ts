@@ -26,13 +26,19 @@ export const initialize = async () => {
   const factory = blockchain.openContract(Factory.createFromAddress(FactoryConfig.factoryAddress));
 
   // Initialize pools
-  const triTONPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.triTONPoolAddress));
-  const quaTONPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.quaTONPoolAddress));
+  const triTONPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.TRI_TON_POOL_ADDRESS));
+  const quaTONPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.QUA_TON_POOL_ADDRESS));
+  const triUSDPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.TRI_USD_POOL_ADDRESS));
+  const quaUSDPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.QUA_USD_POOL_ADDRESS));
 
   // Initialize Jetton Master
-  const stTON = blockchain.openContract(JettonMaster.create(PoolAssets.stTONAsset.jettonMaster!));
-  const tsTON = blockchain.openContract(JettonMaster.create(PoolAssets.tsTONAsset.jettonMaster!));
-  const hTON = blockchain.openContract(JettonMaster.create(PoolAssets.hTONAsset.jettonMaster!));
+  const stTON = blockchain.openContract(JettonMaster.create(PoolAssets.ST_TON_ASSET.jettonMaster!));
+  const tsTON = blockchain.openContract(JettonMaster.create(PoolAssets.TS_TON_ASSET.jettonMaster!));
+  const hTON = blockchain.openContract(JettonMaster.create(PoolAssets.HTON_ASSET.jettonMaster!));
+  const USDT = blockchain.openContract(JettonMaster.create(PoolAssets.USDT_ASSET.jettonMaster!));
+  const USDC = blockchain.openContract(JettonMaster.create(PoolAssets.USDC_ASSET.jettonMaster!));
+  const CRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.CRV_USD_ASSET.jettonMaster!));
+  const SCRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.SCRV_USD_ASSET.jettonMaster!));
 
   // Initialize Sender Jetton Wallets
   const senderStTONWallet = blockchain.openContract(
@@ -45,12 +51,36 @@ export const initialize = async () => {
     JettonWallet.create(await hTON.getWalletAddress(MockSettings.sender)),
   );
 
+  const senderUSDTWallet = blockchain.openContract(
+    JettonWallet.create(await USDT.getWalletAddress(MockSettings.sender)),
+  );
+
+  const senderUSDCWallet = blockchain.openContract(
+    JettonWallet.create(await USDC.getWalletAddress(MockSettings.sender)),
+  );
+
+  const senderCrvUSDWallet = blockchain.openContract(
+    JettonWallet.create(await CRV_USD.getWalletAddress(MockSettings.sender)),
+  );
+
+  const senderScrvUSDWallet = blockchain.openContract(
+    JettonWallet.create(await SCRV_USD.getWalletAddress(MockSettings.sender)),
+  );
+
   const senderTriTONWallet = blockchain.openContract(
     JettonWallet.create(await triTONPool.getWalletAddress(MockSettings.sender)),
   );
 
   const senderQuaTONWallet = blockchain.openContract(
     JettonWallet.create(await quaTONPool.getWalletAddress(MockSettings.sender)),
+  );
+
+  const senderTriUSDWallet = blockchain.openContract(
+    JettonWallet.create(await triUSDPool.getWalletAddress(MockSettings.sender)),
+  );
+
+  const senderQuaUSDWallet = blockchain.openContract(
+    JettonWallet.create(await quaUSDPool.getWalletAddress(MockSettings.sender)),
   );
 
   const blockNumber = MockSettings.emulateBlockSeq;
@@ -68,12 +98,13 @@ export const initialize = async () => {
           body: arg.body!,
         }),
       );
+      // printTransactionFees(r.transactions);
     }
   };
 
   const swapImpactTriTON = async (
-    assetIn: Asset = PoolAssets.tsTONAsset,
-    assetOut: Asset = PoolAssets.stTONAsset,
+    assetIn: Asset = PoolAssets.TS_TON_ASSET,
+    assetOut: Asset = PoolAssets.ST_TON_ASSET,
     amountIn: bigint = toNano('0.5'),
   ) => {
     const swapFluctuateParams: SwapParams = {
@@ -87,8 +118,8 @@ export const initialize = async () => {
   };
 
   const swapImpactQuaTON = async (
-    assetIn: Asset = PoolAssets.triTONAsset,
-    assetOut: Asset = PoolAssets.hTONAsset,
+    assetIn: Asset = PoolAssets.TRI_TON_ASSET,
+    assetOut: Asset = PoolAssets.HTON_ASSET,
     amountIn: bigint = 1n * 10n ** 18n,
   ) => {
     const swapFluctuateParams: SwapParams = {
@@ -108,14 +139,26 @@ export const initialize = async () => {
     factory,
     triTONPool,
     quaTONPool,
+    triUSDPool,
+    quaUSDPool,
     stTON,
     tsTON,
     hTON,
+    USDT,
+    USDC,
+    CRV_USD,
+    SCRV_USD,
     senderStTONWallet,
     senderTsTONWallet,
     senderHTONWallet,
+    senderUSDTWallet,
+    senderUSDCWallet,
+    senderCrvUSDWallet,
+    senderScrvUSDWallet,
     senderTriTONWallet,
     senderQuaTONWallet,
+    senderTriUSDWallet,
+    senderQuaUSDWallet,
     send,
     swapImpactTriTON,
     swapImpactQuaTON,
