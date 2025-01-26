@@ -227,7 +227,6 @@ export class TorchSDK {
   }> {
     const parsedParams = SwapParamsSchema.parse(params);
     let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
-
     const amountOuts: bigint[] = [];
     const minAmountOuts: bigint[] = [];
 
@@ -272,6 +271,14 @@ export class TorchSDK {
         amountOut = nextSimulateResult ? nextSimulateResult.amountIn : parsedParams.amountOut;
       }
       amountOuts.push(amountOut);
+    }
+
+    if (!parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
+      return {
+        amountIn,
+        amountOuts,
+        minAmountOuts: null,
+      };
     }
 
     /**
@@ -431,12 +438,14 @@ export class TorchSDK {
           value: simulateResult.amountOuts[i]!,
         })),
       );
-      minAmountOuts = Allocation.createAllocations(
-        pool.assets.map(({ asset }, i) => ({
-          asset,
-          value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
-        })),
-      );
+      if (parsedParams.slippageTolerance) {
+        minAmountOuts = Allocation.createAllocations(
+          pool.assets.map(({ asset }, i) => ({
+            asset,
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
+          })),
+        );
+      }
     }
     if (parsedParams.mode === 'Single') {
       amountOuts = Allocation.createAllocations([
@@ -445,12 +454,14 @@ export class TorchSDK {
           value: simulateResult.amountOuts[0]!,
         },
       ]);
-      minAmountOuts = Allocation.createAllocations([
-        {
-          asset: withdrawSingleAsset!,
-          value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
-        },
-      ]);
+      if (parsedParams.slippageTolerance) {
+        minAmountOuts = Allocation.createAllocations([
+          {
+            asset: withdrawSingleAsset!,
+            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
+          },
+        ]);
+      }
     }
 
     if (parsedParams.nextWithdraw && nextPool) {
@@ -482,12 +493,14 @@ export class TorchSDK {
             value: nextSimulateResult.amountOuts[i],
           })),
         );
-        nextMinAmountOuts = Allocation.createAllocations(
-          nextPool.assets.map(({ asset }, i) => ({
-            asset,
-            value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[i], parsedParams.slippageTolerance!),
-          })),
-        );
+        if (parsedParams.slippageTolerance) {
+          nextMinAmountOuts = Allocation.createAllocations(
+            nextPool.assets.map(({ asset }, i) => ({
+              asset,
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[i], parsedParams.slippageTolerance!),
+            })),
+          );
+        }
       }
       if (parsedParams.nextWithdraw.mode === 'Single') {
         nextAmountOuts = Allocation.createAllocations([
@@ -496,17 +509,15 @@ export class TorchSDK {
             value: nextSimulateResult.amountOuts[0],
           },
         ]);
-        nextMinAmountOuts = Allocation.createAllocations([
-          {
-            asset: parsedParams.nextWithdraw.withdrawAsset!,
-            value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[0], parsedParams.slippageTolerance!),
-          },
-        ]);
+        if (parsedParams.slippageTolerance) {
+          nextMinAmountOuts = Allocation.createAllocations([
+            {
+              asset: parsedParams.nextWithdraw.withdrawAsset!,
+              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[0], parsedParams.slippageTolerance!),
+            },
+          ]);
+        }
       }
-    }
-
-    if (!parsedParams.slippageTolerance) {
-      return { amountOuts, nextAmountOuts, minAmountOuts: null, nextMinAmountOuts: null };
     }
 
     return { amountOuts, nextAmountOuts, minAmountOuts, nextMinAmountOuts };
@@ -750,9 +761,9 @@ export class TorchSDK {
       hops = this.resolveHopsByRoutes(pools, parsedParams.assetIn, parsedParams.assetOut);
     } else {
       hops = await this.api.getHops(parsedParams.assetIn, parsedParams.assetOut);
-      routes = hops.map((hop) => hop.pool.address);
     }
     if (hops.length === 0) throw new Error('No routes found');
+    routes = hops.map((hop) => hop.pool.address);
     return { hops, routes };
   }
 
@@ -776,6 +787,7 @@ export class TorchSDK {
 
     // Get hops
     const { hops, routes } = await this.getSwapRoutes(params);
+    params.routes = routes;
 
     // Get signed rates
     const signedRate = await this.api.getSignedRates(routes);
