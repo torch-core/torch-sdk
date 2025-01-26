@@ -94,9 +94,7 @@ export class TorchSDK {
   }
 
   async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate> {
-    console.time('==== API.getSignedRates =====');
     const result = await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
-    console.timeEnd('==== API.getSignedRates =====');
     return result;
   }
 
