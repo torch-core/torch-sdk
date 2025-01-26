@@ -925,7 +925,6 @@ export class TorchSDK {
     result: SimulateSwapResponse;
     getSwapPayload: (address: Address, options?: { blockNumber?: number }) => Promise<SenderArguments>;
   }> {
-    console.log('==== simulateSwap =====');
     const parsedParams = SwapParamsSchema.parse(params);
 
     // Get hops
