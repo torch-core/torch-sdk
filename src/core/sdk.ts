@@ -92,6 +92,10 @@ export class TorchSDK {
     this.cachedPools = await this.api.getPools();
   }
 
+  async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate> {
+    return await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
+  }
+
   /**
    * Retrieves pool data by addresses.
    *
@@ -786,15 +790,12 @@ export class TorchSDK {
     params: SwapParams,
     options?: { blockNumber?: number },
   ): Promise<SenderArguments> {
-    // Parse params
-    SwapParamsSchema.parse(params);
-
     // Get hops
     const { hops, routes } = await this.getSwapRoutes(params);
     params.routes = routes;
 
     // Get signed rates
-    const signedRate = await this.api.getSignedRates(routes);
+    const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
 
     // Get minAmountOuts, amountOuts
     const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params);
@@ -802,6 +803,7 @@ export class TorchSDK {
     // Build swap payload
     return this.buildSwapPayload(sender, params, amountIn, minAmountOuts, hops, signedRate, options);
   }
+
   /**
    * Generates the payload required to perform a token deposit operation.
    *
@@ -831,7 +833,7 @@ export class TorchSDK {
     const { minAmountOut, nextMinAmountOut } = await this.calculateDepositMinAmountOuts(params);
 
     // Get signed rates
-    const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+    const signedRate = await this.getSignedRatesGivenPools(pools);
 
     // Prepare pool allocations
     const { poolAllocations, metaAllocation } = await this.prepareDepositAllocations(params, pools);
@@ -849,6 +851,7 @@ export class TorchSDK {
       options,
     );
   }
+
   /**
    * Generates the payload required to perform a token withdraw operation.
    *
@@ -872,7 +875,7 @@ export class TorchSDK {
       [parsedParams.pool, parsedParams.nextWithdraw?.pool].filter((pool) => pool !== undefined),
     );
 
-    const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+    const signedRate = await this.getSignedRatesGivenPools(pools);
 
     // Prepare withdrawAsset
     const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
@@ -922,10 +925,12 @@ export class TorchSDK {
     result: SimulateSwapResponse;
     getSwapPayload: (address: Address, options?: { blockNumber?: number }) => Promise<SenderArguments>;
   }> {
+    console.log('==== simulateSwap =====');
     const parsedParams = SwapParamsSchema.parse(params);
 
     // Get hops
     const { hops, routes } = await this.getSwapRoutes(params);
+    params.routes = routes;
 
     // Get inDecimals, outDecimals
     const inDecimals = hops[0].pool.assets.find(({ asset }) => asset.equals(parsedParams.assetIn))?.decimals;
@@ -972,7 +977,7 @@ export class TorchSDK {
           ),
         },
         getSwapPayload: async (address: Address, options?: { blockNumber?: number }) => {
-          const signedRate = await this.api.getSignedRates(hops.map((hop) => hop.pool.address));
+          const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
           return this.buildSwapPayload(
             address,
             parsedExactInParams,
@@ -1000,7 +1005,7 @@ export class TorchSDK {
           ),
         },
         getSwapPayload: async (address: Address, options?: { blockNumber?: number }) => {
-          const signedRate = await this.api.getSignedRates(hops.map((hop) => hop.pool.address));
+          const signedRate = await this.getSignedRatesGivenPools(hops.map((hop) => hop.pool));
           return this.buildSwapPayload(
             address,
             parsedExactInParams,
@@ -1072,7 +1077,7 @@ export class TorchSDK {
       },
       getDepositPayload: async (sender: Address, options?: { blockNumber?: number }) => {
         // Get signed rates
-        const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+        const signedRate = await this.getSignedRatesGivenPools(pools);
 
         // Prepare pool allocations
         const { poolAllocations, metaAllocation } = await this.prepareDepositAllocations(params, pools);
@@ -1140,7 +1145,7 @@ export class TorchSDK {
         details: simulateResults,
       },
       getWithdrawPayload: async (address: Address, options?: { blockNumber?: number }) => {
-        const signedRate = await this.api.getSignedRates(pools.map((pool) => pool.address));
+        const signedRate = await this.getSignedRatesGivenPools(pools);
         const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
 
         return this.buildWithdrawPayload(
