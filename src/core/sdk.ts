@@ -1020,6 +1020,24 @@ export class TorchSDK {
    *
    * @param params - The deposit parameters
    * @returns A promise that resolves to the simulation response containing LP token amounts and execution details
+   * @example
+   * ```ts
+   * const { result, getDepositPayload } = await torchSDK.simulateDeposit({
+   *   pool: Address.parse("TriTon Pool Address"),
+   *   depositAmounts: [
+   *     { asset: Address.parse("tsTON Address"), amount: toNano('0.05') }, // 0.05 tsTON
+   *     { asset: Address.parse("stTON Address"), amount: toNano('0.05') }, // 0.05 stTON
+   *     { asset: Address.parse("TON Address"), amount: toNano('100') }, // 0.05 TON
+   *   ],
+   * });
+   * // Show result
+   * console.log(`Estimated LP token out: ${result.lpTokenOut}`);
+   * console.log(`Min LP token out: ${result.minLpTokenOut}`);
+   * console.log(`LP total supply after: ${result.lpTotalSupplyAfter}`);
+   * // Send Deposit
+   * const senderArgs = await getDepositPayload(userWalletAddress, {blockNumber: 123456});
+   * await send(senderArgs);
+   * ```
    */
   async simulateDeposit(params: DepositParams): Promise<{
     result: SimulateDepositResponse;
