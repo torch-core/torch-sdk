@@ -6,7 +6,6 @@
 
 [![npm version](https://img.shields.io/npm/v/@torch-finance/sdk.svg?style=for-the-badge)](https://www.npmjs.com/package/@torch-finance/sdk)
 [![npm downloads](https://img.shields.io/npm/dm/@torch-finance/sdk.svg?style=for-the-badge)](https://www.npmjs.com/package/@torch-finance/sdk)
-[![License](https://img.shields.io/npm/l/@torch-finance/sdk.svg?style=for-the-badge)](https://github.com/torch-finance/sdk/blob/main/LICENSE)
 [![Telegram](https://img.shields.io/badge/Torch-Dev%20Chat-blue?style=for-the-badge&logo=telegram)](https://t.me/torch_dev_chat)
 
 ## Overview
