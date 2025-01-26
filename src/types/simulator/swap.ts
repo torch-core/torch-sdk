@@ -1,6 +1,11 @@
+import { Address } from '@ton/core';
 import { SimulateSwapExactInResult, SimulateSwapExactOutResult } from '@torch-finance/dex-contract-wrapper';
 
 interface BaseSimulateSwapResponse {
+  /**
+   * Routes used for the swap
+   */
+  routes: Address[];
   /**
    * Minimum amount that must be received, considering slippage tolerance
    */

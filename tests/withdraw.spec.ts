@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { TorchSDK, WithdrawParams } from '../src';
-import { initialize } from './setup';
-import { PoolAssets } from './config';
+import { TorchSDK, toUnit, WithdrawParams } from '../src';
+import { initialize } from './helper/setup';
+import { Decimals, PoolAssets } from './helper/config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { JettonMaster, JettonWallet } from '@ton/ton';
 import {
@@ -14,7 +14,7 @@ import {
 import { Pool } from '@torch-finance/dex-contract-wrapper';
 import { Asset } from '@torch-finance/core';
 
-describe('Withdraw Testcases', () => {
+describe('Withdraw Testcases (Faster)', () => {
   // set timeout: 6 minutes
   jest.setTimeout(360000);
 
@@ -25,6 +25,8 @@ describe('Withdraw Testcases', () => {
   let initBlockchainState: BlockchainSnapshot;
   let triTONPool: SandboxContract<Pool>;
   let quaTONPool: SandboxContract<Pool>;
+  let triUSDPool: SandboxContract<Pool>;
+  let quaUSDPool: SandboxContract<Pool>;
 
   // Jetton Master
   let stTON: SandboxContract<JettonMaster>;
@@ -37,6 +39,12 @@ describe('Withdraw Testcases', () => {
   let senderHTONWallet: SandboxContract<JettonWallet>;
   let senderTriTONWallet: SandboxContract<JettonWallet>;
   let senderQuaTONWallet: SandboxContract<JettonWallet>;
+  let senderUSDTWallet: SandboxContract<JettonWallet>;
+  let senderUSDCWallet: SandboxContract<JettonWallet>;
+  let senderCrvUSDWallet: SandboxContract<JettonWallet>;
+  let senderScrvUSDWallet: SandboxContract<JettonWallet>;
+  let senderTriUSDWallet: SandboxContract<JettonWallet>;
+  let senderQuaUSDWallet: SandboxContract<JettonWallet>;
 
   // Recipient Jetton Wallet
   let recipientStTONWallet: SandboxContract<JettonWallet>;
@@ -51,11 +59,19 @@ describe('Withdraw Testcases', () => {
   let senderTriTONBalBefore: bigint;
   let senderQuaTONBalBefore: bigint;
   let senderHTONBalBefore: bigint;
+  let senderUSDTBalBefore: bigint;
+  let senderUSDCBalBefore: bigint;
+  let senderCRVUSDBalBefore: bigint;
+  let senderSCRVUSDBalBefore: bigint;
+  let senderTriUSDBalBefore: bigint;
+  let senderQuaUSDBalBefore: bigint;
 
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
   let swapImpactTriTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
   let swapImpactQuaTON: (assetIn?: Asset, assetOut?: Asset, amountIn?: bigint) => Promise<void>;
+
+  let blockNumber: number;
 
   beforeAll(async () => {
     ({
@@ -64,29 +80,36 @@ describe('Withdraw Testcases', () => {
       sender,
       triTONPool,
       quaTONPool,
+      triUSDPool,
+      quaUSDPool,
       senderStTONWallet,
       senderTsTONWallet,
       senderHTONWallet,
       senderTriTONWallet,
       senderQuaTONWallet,
+      senderUSDTWallet,
+      senderUSDCWallet,
+      senderCrvUSDWallet,
+      senderScrvUSDWallet,
+      senderTriUSDWallet,
+      senderQuaUSDWallet,
       stTON,
       tsTON,
       hTON,
       send,
       swapImpactTriTON,
       swapImpactQuaTON,
+      blockNumber,
     } = await initialize());
     recipient = await blockchain.treasury('recipient');
-    recipientStTONWallet = blockchain.openContract(
-      JettonWallet.create(await stTON.getWalletAddress(recipient.address)),
-    );
-    recipientTsTONWallet = blockchain.openContract(
-      JettonWallet.create(await tsTON.getWalletAddress(recipient.address)),
-    );
-    recipientHTONWallet = blockchain.openContract(JettonWallet.create(await hTON.getWalletAddress(recipient.address)));
-    recipientTriTONWallet = blockchain.openContract(
-      JettonWallet.create(await triTONPool.getWalletAddress(recipient.address)),
-    );
+
+    [recipientStTONWallet, recipientTsTONWallet, recipientHTONWallet, recipientTriTONWallet] = await Promise.all([
+      blockchain.openContract(JettonWallet.create(await stTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await tsTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await hTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await triTONPool.getWalletAddress(recipient.address))),
+    ]);
+
     initBlockchainState = blockchain.snapshot();
   });
 
@@ -95,761 +118,963 @@ describe('Withdraw Testcases', () => {
     await blockchain.loadFrom(initBlockchainState);
 
     // Get sender balance
-    senderTonBalBefore = (await blockchain.getContract(sender)).balance;
-    senderStTONBalBefore = await senderStTONWallet.getBalance();
-    senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-    senderHTONBalBefore = await senderHTONWallet.getBalance();
-    senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-    senderQuaTONBalBefore = await senderQuaTONWallet.getBalance();
+    [
+      senderTonBalBefore,
+      senderStTONBalBefore,
+      senderTsTONBalBefore,
+      senderHTONBalBefore,
+      senderTriTONBalBefore,
+      senderQuaTONBalBefore,
+      senderUSDTBalBefore,
+      senderUSDCBalBefore,
+      senderCRVUSDBalBefore,
+      senderSCRVUSDBalBefore,
+      senderTriUSDBalBefore,
+      senderQuaUSDBalBefore,
+    ] = await Promise.all([
+      blockchain.getContract(sender).then((contract) => contract.balance),
+      senderStTONWallet.getBalance(),
+      senderTsTONWallet.getBalance(),
+      senderHTONWallet.getBalance(),
+      senderTriTONWallet.getBalance(),
+      senderQuaTONWallet.getBalance(),
+      senderUSDTWallet.getBalance(),
+      senderUSDCWallet.getBalance(),
+      senderCrvUSDWallet.getBalance(),
+      senderScrvUSDWallet.getBalance(),
+      senderTriUSDWallet.getBalance(),
+      senderQuaUSDWallet.getBalance(),
+    ]);
   });
 
-  describe('Withdraw in TriTON Pool', () => {
-    it('should withdraw all in triTON pool', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Balanced',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-      await send(withdrawArgs);
-
-      // Sender TriTON balance should be decreased
-      await checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore);
-
-      // Sender tsTON balance should be increased
-      await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
-
-      // Sender TON balance should be increased
-      await checkTONBalIncrease(blockchain, sender, senderTonBalBefore);
-
-      // Sender stTON balance should be increased
-      await checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore);
-    });
-
-    it('should withdraw all in triTON pool with recipient', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Balanced',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-        recipient: recipient.address,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-      await send(withdrawArgs);
-
-      // Sender TriTON balance should be decreased
-      await checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore);
-
-      // Recipient tsTON balance should be increased
-      await checkJettonBalIncrease(recipientTsTONWallet, 0n);
-
-      // Recipient TON balance should be increased
-      await checkTONBalIncrease(blockchain, recipient.address, 0n);
-
-      // Recipient stTON balance should be increased
-      await checkJettonBalIncrease(recipientStTONWallet, 0n);
-    });
-
-    it('should withdraw one in triTON pool', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Single',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-        withdrawAsset: PoolAssets.tsTONAsset,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-      await send(withdrawArgs);
-
-      // Sender tsTON balance should be increased
-      await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
-
-      // Sender TON balance should be decreased
-      await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
-
-      // Sender stTON balance should be not changed
-      await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-
-      // Sender triTON balance should be decreased
-      await checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore);
-    });
-
-    it('should withdraw one in triTON pool with recipient', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Single',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-        withdrawAsset: PoolAssets.tsTONAsset,
-        recipient: recipient.address,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-      await send(withdrawArgs);
-
-      // Sender triTON balance should be decreased
-      await checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore);
-
-      // Recipient tsTON balance should be increased
-      await checkJettonBalIncrease(recipientTsTONWallet, 0n);
-    });
-
-    it('should refund triTON to sender in withdraw all when slippage is not met', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Balanced',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-        slippageTolerance: 0.01,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-      // Someone swap to make the price fluctuate
-      await swapImpactTriTON();
-
-      // Reset balance
-      senderStTONBalBefore = await senderStTONWallet.getBalance();
-      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-
-      await send(withdrawArgs);
-
-      // Sender triTON balance should not be changed
-      await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
-
-      // Sender tsTON balance should not be changed
-      await checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore);
-
-      // Sender stTON balance should not be changed
-      await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-    });
-
-    it('should refund triTON to sender in withdraw one when slippage is not met', async () => {
-      // Build withdraw payload
-      const withdrawParams: WithdrawParams = {
-        mode: 'Single',
-        pool: triTONPool.address,
-        burnLpAmount: 1n * 10n ** 18n,
-        queryId: 1n,
-        slippageTolerance: 0.01,
-        withdrawAsset: PoolAssets.stTONAsset,
-      };
-
-      // Send withdraw
-      const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-      // Someone swap to make the price fluctuate
-      await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
-
-      // Reset balance
-      senderStTONBalBefore = await senderStTONWallet.getBalance();
-      senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-
-      await send(withdrawArgs);
-
-      // Sender triTON balance should not be changed
-      await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
-
-      // Sender stTON balance should not be changed
-      await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-    });
-  });
-
-  describe('Withdraw and Withdraw', () => {
-    describe('Withdraw all and withdraw all', () => {
-      it('should withdraw all and withdraw all', async () => {
-        // Build withdraw payload
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount: 1n * 10n ** 18n,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
+  function createWithdrawTests(
+    description: string,
+    getPayload: (
+      sdk: TorchSDK,
+      params: WithdrawParams,
+      sender: Address,
+    ) => Promise<SenderArguments[] | SenderArguments>,
+  ) {
+    describe(description, () => {
+      describe('Withdraw in TriTON Pool', () => {
+        it('should withdraw all in triTON pool', async () => {
+          const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
-          },
-        };
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+          };
 
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
 
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore);
+          // Send withdraw
+          await send(withdrawArgs);
 
-        // Sender hTON balance should be increased
-        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
+          await Promise.all([
+            // Sender TriTON balance should be decreased
+            checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore),
+            // Sender tsTON balance should be increased
+            checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore),
+            // Sender TON balance should be increased
+            checkTONBalIncrease(blockchain, sender, senderTonBalBefore),
+            // Sender stTON balance should be increased
+            checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore),
+          ]);
+        });
 
-        // Sender TON balance should be increased
-        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
+        it('should withdraw all in triTON pool with recipient', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Balanced',
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+            recipient: recipient.address,
+          };
 
-        // Sender stTON balance should be increased
-        await checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore);
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
 
-        // Sender tsTON balance should be increased
-        await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
+          await Promise.all([
+            // Sender TriTON balance should be decreased
+            checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore),
+            // Recipient tsTON balance should be increased
+            checkJettonBalIncrease(recipientTsTONWallet, 0n),
+            // Recipient TON balance should be increased
+            checkTONBalIncrease(blockchain, recipient.address, 0n),
+            // Recipient stTON balance should be increased
+            checkJettonBalIncrease(recipientStTONWallet, 0n),
+          ]);
+        });
+
+        it('should withdraw one in triTON pool', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
+          };
+
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender tsTON balance should be increased
+            checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore),
+            // Sender TON balance should be decreased
+            checkTONBalDecrease(blockchain, sender, senderTonBalBefore),
+            // Sender stTON balance should be not changed
+            checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+            // Sender triTON balance should be decreased
+            checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore),
+          ]);
+        });
+
+        it('should withdraw one in triTON pool with recipient', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
+            recipient: recipient.address,
+          };
+
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender triTON balance should be decreased
+            checkJettonBalDecrease(senderTriTONWallet, senderTriTONBalBefore),
+            // Recipient tsTON balance should be increased
+            checkJettonBalIncrease(recipientTsTONWallet, 0n),
+          ]);
+        });
+
+        it('should refund triTON to sender in withdraw all when slippage is not met', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Balanced',
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+            slippageTolerance: 0.01,
+          };
+
+          await swapImpactTriTON();
+
+          // Reset balance
+          senderStTONBalBefore = await senderStTONWallet.getBalance();
+          senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender triTON balance should not be changed
+            checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore),
+            // Sender tsTON balance should not be changed
+            checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore),
+            // Sender stTON balance should not be changed
+            checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+          ]);
+        });
+
+        it('should refund triTON to sender in withdraw one when slippage is not met', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: triTONPool.address,
+            burnLpAmount: 1n * 10n ** 18n,
+            queryId: 1n,
+            slippageTolerance: 0.01,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
+          };
+
+          await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+
+          // Reset balance
+          senderStTONBalBefore = await senderStTONWallet.getBalance();
+          senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender triTON balance should not be changed
+            checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore),
+            // Sender stTON balance should not be changed
+            checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+          ]);
+        });
       });
 
-      it('should withdraw all and withdraw all with recipient', async () => {
-        // Build withdraw payload
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount: 1n * 10n ** 18n,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Balanced',
-          },
-          recipient: recipient.address,
-        };
+      describe('Withdraw and Withdraw in QuaTON Pool and TriTON Pool', () => {
+        describe('Withdraw all and withdraw all', () => {
+          it('should withdraw all and withdraw all', async () => {
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount: 1n * 10n ** 18n,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+            };
 
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
 
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore);
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore),
+              // Sender hTON balance should be increased
+              checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore),
+              // Sender TON balance should be increased
+              checkTONBalIncrease(blockchain, sender, senderTonBalBefore),
+              // Sender stTON balance should be increased
+              checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore),
+              // Sender tsTON balance should be increased
+              checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore),
+            ]);
+          });
 
-        // Recipient hTON balance should be increased
-        await checkJettonBalIncrease(recipientHTONWallet, 0n);
+          it('should withdraw all and withdraw all with recipient', async () => {
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount: 1n * 10n ** 18n,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              recipient: recipient.address,
+            };
 
-        // Recipient TON balance should be increased
-        await checkTONBalIncrease(blockchain, recipient.address, 0n);
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
 
-        // Recipient stTON balance should be increased
-        await checkJettonBalIncrease(recipientStTONWallet, 0n);
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore),
+              // Recipient hTON balance should be increased
+              checkJettonBalIncrease(recipientHTONWallet, 0n),
+              // Recipient TON balance should be increased
+              checkTONBalIncrease(blockchain, recipient.address, 0n),
 
-        // Recipient tsTON balance should be increased
-        await checkJettonBalIncrease(recipientTsTONWallet, 0n);
+              // Recipient stTON balance should be increased
+              checkJettonBalIncrease(recipientStTONWallet, 0n),
+              // Recipient tsTON balance should be increased
+              checkJettonBalIncrease(recipientTsTONWallet, 0n),
+            ]);
+          });
+
+          it('should refund quaTON to sender in withdraw all and withdraw all when slippage is not met', async () => {
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount: 1n * 10n ** 18n,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactQuaTON();
+
+            // Reset balance
+            senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+            senderHTONBalBefore = await senderHTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should not be changed
+              checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should not be changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+
+              // Sender tsTON balance should not be changed
+              checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore),
+
+              // Sender TON balance should only decrease by gas fee
+              checkTONBalDecrease(blockchain, sender, senderTonBalBefore),
+            ]);
+          });
+
+          it('should refund triTON to sender in withdraw all and withdraw all when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactTriTON();
+
+            // Reset balance
+            senderStTONBalBefore = await senderStTONWallet.getBalance();
+            senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender hTON balance should be increased
+              checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender triTON balance should be increased
+              checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore),
+            ]);
+          });
+        });
+
+        describe('Withdraw one and withdraw one', () => {
+          it('should withdraw one and withdraw one', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
+              },
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender tsTON balance should be increased
+              checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore),
+            ]);
+          });
+
+          it('should withdraw one and withdraw one with recipient', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
+              },
+              recipient: recipient.address,
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Recipient tsTON balance should be increased
+              checkJettonBalIncrease(recipientTsTONWallet, 0n),
+            ]);
+          });
+
+          it('should refund quaTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
+
+            // Reset balance
+            senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+            senderHTONBalBefore = await senderHTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should not be changed
+              checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should not be changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+            ]);
+          });
+
+          it('should refund triTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+
+            // Reset balance
+            senderStTONBalBefore = await senderStTONWallet.getBalance();
+            senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender triTON balance should be increased
+              checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore),
+
+              // Sender stTON balance should be not changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+            ]);
+          });
+        });
+
+        describe('Withdraw all and withdraw one', () => {
+          it('should withdraw all and withdraw one', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
+              },
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender hTON balance should be increased
+              checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should be increased
+              checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore),
+            ]);
+          });
+
+          it('should withdraw all and withdraw one with recipient', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
+              },
+              recipient: recipient.address,
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Recipient stTON balance should be increased
+              checkJettonBalIncrease(recipientStTONWallet, 0n),
+
+              // Recipient hTON balance should be increased
+              checkJettonBalIncrease(recipientHTONWallet, 0n),
+            ]);
+          });
+
+          it('should refund quaTON to sender in withdraw all and withdraw one when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactQuaTON();
+
+            // Reset balance
+            senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+            senderHTONBalBefore = await senderHTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should not be changed
+              checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should not be changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+            ]);
+          });
+
+          it('should refund triTON to sender in withdraw all and withdraw one when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Balanced',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Single',
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+
+            // Reset balance
+            senderStTONBalBefore = await senderStTONWallet.getBalance();
+            senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender triTON balance should be increased
+              checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore),
+
+              // Sender hTON balance should be increased
+              checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should be not changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+            ]);
+          });
+        });
+
+        describe('Withdraw one and withdraw all', () => {
+          it('should withdraw one and withdraw all', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender TriTON balance should not be changed
+              checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore),
+
+              // Sender stTON balance should be increased
+              checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore),
+
+              // Sender tsTON balance should be increased
+              checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore),
+
+              // Sender TON balance should be increased
+              checkTONBalIncrease(blockchain, sender, senderTonBalBefore),
+            ]);
+          });
+
+          it('should withdraw one and withdraw all with recipient', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              recipient: recipient.address,
+            };
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Recipient hTON balance should not be changed
+              checkJettonBalNotChanged(recipientHTONWallet, 0n),
+
+              // Recipient stTON balance should be increased
+              checkJettonBalIncrease(recipientStTONWallet, 0n),
+
+              // Recipient TriTON balance should not be changed
+              checkJettonBalNotChanged(recipientTriTONWallet, 0n),
+
+              // Recipient tsTON balance should be increased
+              checkJettonBalIncrease(recipientTsTONWallet, 0n),
+
+              // Recipient TON balance should be increased
+              checkTONBalIncrease(blockchain, recipient.address, 0n),
+            ]);
+          });
+
+          it('should refund quaTON to sender in withdraw one and withdraw all when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
+
+            // Reset balance
+            senderTriTONBalBefore = await senderTriTONWallet.getBalance();
+            senderHTONBalBefore = await senderHTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should not be changed
+              checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender stTON balance should not be changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+
+              // Sender tsTON balance should not be changed
+              checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore),
+            ]);
+          });
+
+          it('should refund triTON to sender in withdraw one and withdraw all when slippage is not met', async () => {
+            const burnLpAmount = 1n * 10n ** 18n;
+            const withdrawParams: WithdrawParams = {
+              mode: 'Single',
+              pool: quaTONPool.address,
+              burnLpAmount,
+              queryId: 1n,
+              nextWithdraw: {
+                pool: triTONPool.address,
+                mode: 'Balanced',
+              },
+              slippageTolerance: 0.01,
+            };
+
+            await swapImpactTriTON();
+
+            // Reset balance
+            senderStTONBalBefore = await senderStTONWallet.getBalance();
+            senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+
+            const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+            await send(withdrawArgs);
+
+            await Promise.all([
+              // Sender QuaTON balance should be decreased
+              checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount),
+
+              // Sender hTON balance should not be changed
+              checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore),
+
+              // Sender triTON balance should be increased
+              checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore),
+
+              // Sender stTON balance should not be changed
+              checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore),
+
+              // Sender tsTON balance should not be changed
+              checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore),
+
+              // Sender TON balance should only decreased by gas fee
+              checkTONBalDecrease(blockchain, sender, senderTonBalBefore),
+            ]);
+          });
+        });
       });
 
-      it('should refund quaTON to sender in withdraw all and withdraw all when slippage is not met', async () => {
-        // Build withdraw payload
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount: 1n * 10n ** 18n,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
+      describe('Withdraw in TriUSDPool', () => {
+        it('should withdraw all in triUSDPool', async () => {
+          // Build withdraw payload
+          const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
-          },
-          slippageTolerance: 0.01,
-        };
+            pool: triUSDPool.address,
+            burnLpAmount: toUnit(2, Decimals.TRI_USD_DECIMALS),
+            queryId: 1n,
+          };
 
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
 
-        // Someone swap to make the price fluctuate
-        await swapImpactQuaTON();
+          // Send withdraw
+          await send(withdrawArgs);
 
-        // Reset balance
-        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-        senderHTONBalBefore = await senderHTONWallet.getBalance();
+          await Promise.all([
+            // Check sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
 
-        await send(withdrawArgs);
+            // Check sender USDC balance should be increased
+            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
 
-        // Sender QuaTON balance should not be changed
-        await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
+            // Check sender CRVUSD balance should be increased
+            checkJettonBalIncrease(senderCrvUSDWallet, senderCRVUSDBalBefore),
 
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
+            // Check sender TriUSD Lp balance should be decreased
+            checkJettonBalDecrease(senderTriUSDWallet, senderTriUSDBalBefore),
+          ]);
+        });
 
-        // Sender stTON balance should not be changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
+        it('should withdraw one in triUSDPool', async () => {
+          // Build withdraw payload
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: triUSDPool.address,
+            burnLpAmount: toUnit(1, Decimals.TRI_USD_DECIMALS),
+            queryId: 1n,
+            withdrawAsset: PoolAssets.USDT_ASSET,
+          };
 
-        // Sender tsTON balance should not be changed
-        await checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore);
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
 
-        // Sender TON balance should only decrease by gas fee
-        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
+          // Send withdraw
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Check sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+
+            // Check sender TriUSD balance should be decreased
+            checkJettonBalDecrease(senderTriUSDWallet, senderTriUSDBalBefore),
+          ]);
+        });
       });
 
-      it('should refund triTON to sender in withdraw all and withdraw all when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
+      describe('Withdraw and Withdraw in QuaUSD Pool and TriUSD Pool', () => {
+        it('should withdraw all and withdraw all', async () => {
+          const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
-          },
-          slippageTolerance: 0.01,
-        };
+            pool: quaUSDPool.address,
+            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            queryId: 1n,
+            nextWithdraw: {
+              pool: triUSDPool.address,
+              mode: 'Balanced',
+            },
+          };
 
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+          await send(withdrawArgs);
 
-        // Someone swap to make the price fluctuate
-        await swapImpactTriTON();
+          await Promise.all([
+            // Sender QuaUSD balance should be decreased
+            checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore),
 
-        // Reset balance
-        senderStTONBalBefore = await senderStTONWallet.getBalance();
-        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
+            // Sender TriUSD balance should be not changed
+            checkJettonBalNotChanged(senderTriUSDWallet, senderTriUSDBalBefore),
 
-        await send(withdrawArgs);
+            // Sender SCRV_USD balance should be increased
+            checkJettonBalIncrease(senderScrvUSDWallet, senderSCRVUSDBalBefore),
 
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
 
-        // Sender hTON balance should be increased
-        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
+            // Sender USDC balance should be increased
+            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
 
-        // Sender triTON balance should be increased
-        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
+            // Sender CRVUSD balance should be increased
+            checkJettonBalIncrease(senderCrvUSDWallet, senderCRVUSDBalBefore),
+          ]);
+        });
+
+        it('should withdraw all and withdraw one', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Balanced',
+            pool: quaUSDPool.address,
+            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            queryId: 1n,
+            nextWithdraw: {
+              pool: triUSDPool.address,
+              mode: 'Single',
+              withdrawAsset: PoolAssets.USDT_ASSET,
+            },
+          };
+
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+
+          // Send withdraw
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender QuaUSD balance should be decreased
+            checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore),
+
+            // Sender TriUSD balance should be not changed
+            checkJettonBalNotChanged(senderTriUSDWallet, senderTriUSDBalBefore),
+
+            // Sender SCRV_USD balance should be increased
+            checkJettonBalIncrease(senderScrvUSDWallet, senderSCRVUSDBalBefore),
+
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+          ]);
+        });
+
+        it('should withdraw one and withdraw all', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: quaUSDPool.address,
+            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            queryId: 1n,
+            nextWithdraw: {
+              pool: triUSDPool.address,
+              mode: 'Balanced',
+            },
+          };
+
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+
+          // Send withdraw
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender QuaUSD balance should be decreased
+            checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore),
+
+            // Sender TriUSD balance should be not changed
+            checkJettonBalNotChanged(senderTriUSDWallet, senderTriUSDBalBefore),
+
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+
+            // Sender USDC balance should be increased
+            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
+
+            // Sender CRVUSD balance should be increased
+            checkJettonBalIncrease(senderCrvUSDWallet, senderCRVUSDBalBefore),
+          ]);
+        });
+
+        it('should withdraw one and withdraw one', async () => {
+          const withdrawParams: WithdrawParams = {
+            mode: 'Single',
+            pool: quaUSDPool.address,
+            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            queryId: 1n,
+            nextWithdraw: {
+              pool: triUSDPool.address,
+              mode: 'Single',
+              withdrawAsset: PoolAssets.USDT_ASSET,
+            },
+          };
+
+          // Get withdraw payload
+          const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
+
+          // Send withdraw
+          await send(withdrawArgs);
+
+          await Promise.all([
+            // Sender QuaUSD balance should be decreased
+            checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore),
+
+            // Sender TriUSD balance should be not changed
+            checkJettonBalNotChanged(senderTriUSDWallet, senderTriUSDBalBefore),
+
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+          ]);
+        });
       });
     });
-
-    describe('Withdraw one and withdraw one', () => {
-      it('should withdraw one and withdraw one', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
-          },
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender tsTON balance should be increased
-        await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
-      });
-
-      it('should withdraw one and withdraw one with recipient', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
-          },
-          recipient: recipient.address,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Recipient tsTON balance should be increased
-        await checkJettonBalIncrease(recipientTsTONWallet, 0n);
-      });
-
-      it('should refund quaTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
-
-        // Reset balance
-        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-        senderHTONBalBefore = await senderHTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should not be changed
-        await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
-
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender stTON balance should not be changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-      });
-
-      it('should refund triTON to sender in withdraw one and withdraw one when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
-
-        // Reset balance
-        senderStTONBalBefore = await senderStTONWallet.getBalance();
-        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender TriTON balance should be increased
-        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
-
-        // Sender stTON balance should be not changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-      });
-    });
-
-    describe('Withdraw all and withdraw one', () => {
-      it('should withdraw all and withdraw one', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
-          },
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender hTON balance should be increased
-        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender stTON balance should be increased
-        await checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore);
-      });
-
-      it('should withdraw all and withdraw one with recipient', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
-          },
-          recipient: recipient.address,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Recipient stTON balance should be increased
-        await checkJettonBalIncrease(recipientStTONWallet, 0n);
-
-        // Recipient hTON balance should be increased
-        await checkJettonBalIncrease(recipientHTONWallet, 0n);
-      });
-
-      it('should refund quaTON to sender in withdraw all and withdraw one when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactQuaTON();
-
-        // Reset balance
-        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-        senderHTONBalBefore = await senderHTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should not be changed
-        await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
-
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender stTON balance should not be changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-      });
-
-      it('should refund triTON to sender in withdraw all and withdraw one when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Balanced',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
-
-        // Reset balance
-        senderStTONBalBefore = await senderStTONWallet.getBalance();
-        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender triTON balance should be increased
-        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
-
-        // Sender hTON balance should be increased
-        await checkJettonBalIncrease(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender stTON balance should be not changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-      });
-    });
-
-    describe('Withdraw one and withdraw all', () => {
-      it('should withdraw one and withdraw all', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Balanced',
-          },
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender TriTON balance should not be changed
-        await checkJettonBalNotChanged(senderTriTONWallet, senderTriTONBalBefore);
-
-        // Sender stTON balance should be increased
-        await checkJettonBalIncrease(senderStTONWallet, senderStTONBalBefore);
-
-        // Sender tsTON balance should be increased
-        await checkJettonBalIncrease(senderTsTONWallet, senderTsTONBalBefore);
-
-        // Sender TON balance should be increased
-        await checkTONBalIncrease(blockchain, sender, senderTonBalBefore);
-      });
-
-      it('should withdraw one and withdraw all with recipient', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Balanced',
-          },
-          recipient: recipient.address,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Recipient hTON balance should not be changed
-        await checkJettonBalNotChanged(recipientHTONWallet, 0n);
-
-        // Recipient stTON balance should be increased
-        await checkJettonBalIncrease(recipientStTONWallet, 0n);
-
-        // Recipient TriTON balance should not be changed
-        await checkJettonBalNotChanged(recipientTriTONWallet, 0n);
-
-        // Recipient tsTON balance should be increased
-        await checkJettonBalIncrease(recipientTsTONWallet, 0n);
-
-        // Recipient TON balance should be increased
-        await checkTONBalIncrease(blockchain, recipient.address, 0n);
-      });
-
-      it('should refund quaTON to sender in withdraw one and withdraw all when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Balanced',
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
-
-        // Reset balance
-        senderTriTONBalBefore = await senderTriTONWallet.getBalance();
-        senderHTONBalBefore = await senderHTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should not be changed
-        await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
-
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender stTON balance should not be changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-
-        // Sender tsTON balance should not be changed
-        await checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore);
-      });
-
-      it('should refund triTON to sender in withdraw one and withdraw all when slippage is not met', async () => {
-        // Build withdraw payload
-        const burnLpAmount = 1n * 10n ** 18n;
-        const withdrawParams: WithdrawParams = {
-          mode: 'Single',
-          pool: quaTONPool.address,
-          burnLpAmount,
-          queryId: 1n,
-          nextWithdraw: {
-            pool: triTONPool.address,
-            mode: 'Balanced',
-          },
-          slippageTolerance: 0.01,
-        };
-
-        // Send withdraw
-        const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
-
-        // Someone swap to make the price fluctuate
-        await swapImpactTriTON();
-
-        // Reset balance
-        senderStTONBalBefore = await senderStTONWallet.getBalance();
-        senderTsTONBalBefore = await senderTsTONWallet.getBalance();
-
-        await send(withdrawArgs);
-
-        // Sender QuaTON balance should be decreased
-        await checkJettonBalDecrease(senderQuaTONWallet, senderQuaTONBalBefore, burnLpAmount);
-
-        // Sender hTON balance should not be changed
-        await checkJettonBalNotChanged(senderHTONWallet, senderHTONBalBefore);
-
-        // Sender triTON balance should be increased
-        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
-
-        // Sender stTON balance should not be changed
-        await checkJettonBalNotChanged(senderStTONWallet, senderStTONBalBefore);
-
-        // Sender tsTON balance should not be changed
-        await checkJettonBalNotChanged(senderTsTONWallet, senderTsTONBalBefore);
-
-        // Sender TON balance should only decreased by gas fee
-        await checkTONBalDecrease(blockchain, sender, senderTonBalBefore);
-      });
-    });
-  });
+  }
+
+  Promise.all([
+    createWithdrawTests('Withdraw Tests (Simulation)', async (sdk, params, sender) => {
+      const simulateResponse = await sdk.simulateWithdraw(params);
+      return await simulateResponse.getWithdrawPayload(sender, { blockNumber });
+    }),
+
+    createWithdrawTests('Withdraw Tests 123', async (sdk, params, sender) => {
+      return await sdk.getWithdrawPayload(sender, params, { blockNumber });
+    }),
+  ]);
 });
