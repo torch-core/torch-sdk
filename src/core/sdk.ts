@@ -62,8 +62,7 @@ export class TorchSDK {
     this.tonClient =
       options?.tonClient ||
       new TonClient4({
-        // TODO: change to mainnet endpoint
-        endpoint: 'https://testnet-v4.tonhubapi.com',
+        endpoint: 'https://mainnet-v4.tonhubapi.com',
       });
     this.api = new TorchAPI({
       apiEndpoint: indexerEndpoint,

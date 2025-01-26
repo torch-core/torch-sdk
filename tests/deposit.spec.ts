@@ -87,10 +87,10 @@ describe('Deposit Testcases', () => {
       blockNumber,
     } = await initialize());
     recipient = await blockchain.treasury('recipient');
-    recipientTriTONWallet = await blockchain.openContract(
+    recipientTriTONWallet = blockchain.openContract(
       JettonWallet.create(await triTONPool.getWalletAddress(recipient.address)),
     );
-    recipientQuaTONWallet = await blockchain.openContract(
+    recipientQuaTONWallet = blockchain.openContract(
       JettonWallet.create(await quaTONPool.getWalletAddress(recipient.address)),
     );
     initBlockchainState = blockchain.snapshot();

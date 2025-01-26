@@ -15,8 +15,9 @@ export const initialize = async () => {
 
   const torchSDK = new TorchSDK({
     factoryAddress: FactoryConfig.factoryAddress,
-    apiEndpoint: 'https://testnet-api-server-asia-1074685515738.asia-east1.run.app',
-    oracleEndpoint: 'https://testnet-oracle-1074685515738.asia-east1.run.app',
+    tonClient: new TonClient4({ endpoint: 'https://testnet-v4.tonhubapi.com' }),
+    apiEndpoint: 'https://testnet-api.torch.finance',
+    oracleEndpoint: 'https://testnet-oracle.torch.finance',
   });
 
   // Initialize Sender
