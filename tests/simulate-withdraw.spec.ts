@@ -14,7 +14,7 @@ import {
 import { Pool } from '@torch-finance/dex-contract-wrapper';
 import { Asset } from '@torch-finance/core';
 
-describe('Withdraw Testcases', () => {
+describe('Withdraw Testcases (Faster)', () => {
   // set timeout: 6 minutes
   jest.setTimeout(360000);
 
@@ -80,16 +80,14 @@ describe('Withdraw Testcases', () => {
       blockNumber,
     } = await initialize());
     recipient = await blockchain.treasury('recipient');
-    recipientStTONWallet = blockchain.openContract(
-      JettonWallet.create(await stTON.getWalletAddress(recipient.address)),
-    );
-    recipientTsTONWallet = blockchain.openContract(
-      JettonWallet.create(await tsTON.getWalletAddress(recipient.address)),
-    );
-    recipientHTONWallet = blockchain.openContract(JettonWallet.create(await hTON.getWalletAddress(recipient.address)));
-    recipientTriTONWallet = blockchain.openContract(
-      JettonWallet.create(await triTONPool.getWalletAddress(recipient.address)),
-    );
+
+    [recipientStTONWallet, recipientTsTONWallet, recipientHTONWallet, recipientTriTONWallet] = await Promise.all([
+      blockchain.openContract(JettonWallet.create(await stTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await tsTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await hTON.getWalletAddress(recipient.address))),
+      blockchain.openContract(JettonWallet.create(await triTONPool.getWalletAddress(recipient.address))),
+    ]);
+
     initBlockchainState = blockchain.snapshot();
   });
 
@@ -179,7 +177,7 @@ describe('Withdraw Testcases', () => {
             pool: triTONPool.address,
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
-            withdrawAsset: PoolAssets.tsTONAsset,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
           };
 
           const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
@@ -203,7 +201,7 @@ describe('Withdraw Testcases', () => {
             pool: triTONPool.address,
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
-            withdrawAsset: PoolAssets.tsTONAsset,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
             recipient: recipient.address,
           };
 
@@ -253,10 +251,10 @@ describe('Withdraw Testcases', () => {
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
             slippageTolerance: 0.01,
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           };
 
-          await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+          await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
           // Reset balance
           senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -423,7 +421,7 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.tsTONAsset,
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
               },
             };
 
@@ -449,7 +447,7 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.tsTONAsset,
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
               },
               recipient: recipient.address,
             };
@@ -476,12 +474,12 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.tsTONAsset,
+                withdrawAsset: PoolAssets.TS_TON_ASSET,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
+            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
 
             // Reset balance
             senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -512,12 +510,12 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.stTONAsset,
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
             // Reset balance
             senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -550,7 +548,7 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.stTONAsset,
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
               },
             };
 
@@ -579,7 +577,7 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.stTONAsset,
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
               },
               recipient: recipient.address,
             };
@@ -609,7 +607,7 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.stTONAsset,
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
               },
               slippageTolerance: 0.01,
             };
@@ -645,12 +643,12 @@ describe('Withdraw Testcases', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.stTONAsset,
+                withdrawAsset: PoolAssets.ST_TON_ASSET,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
             // Reset balance
             senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -765,7 +763,7 @@ describe('Withdraw Testcases', () => {
               slippageTolerance: 0.01,
             };
 
-            await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
+            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
 
             // Reset balance
             senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -842,7 +840,7 @@ describe('Withdraw Testcases', () => {
   //   return await simulateResponse.getWithdrawPayload(sender, { blockNumber });
   // });
 
-  createWithdrawTests('Withdraw Tests', async (sdk, params, sender) => {
+  createWithdrawTests('Withdraw Tests 123', async (sdk, params, sender) => {
     return await sdk.getWithdrawPayload(sender, params, { blockNumber });
   });
 });

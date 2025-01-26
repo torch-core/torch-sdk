@@ -40,48 +40,48 @@ export const initialize = async () => {
   const CRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.CRV_USD_ASSET.jettonMaster!));
   const SCRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.SCRV_USD_ASSET.jettonMaster!));
 
-  // Initialize Sender Jetton Wallets
-  const senderStTONWallet = blockchain.openContract(
-    JettonWallet.create(await stTON.getWalletAddress(MockSettings.sender)),
-  );
-  const senderTsTONWallet = blockchain.openContract(
-    JettonWallet.create(await tsTON.getWalletAddress(MockSettings.sender)),
-  );
-  const senderHTONWallet = blockchain.openContract(
-    JettonWallet.create(await hTON.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderUSDTWallet = blockchain.openContract(
-    JettonWallet.create(await USDT.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderUSDCWallet = blockchain.openContract(
-    JettonWallet.create(await USDC.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderCrvUSDWallet = blockchain.openContract(
-    JettonWallet.create(await CRV_USD.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderScrvUSDWallet = blockchain.openContract(
-    JettonWallet.create(await SCRV_USD.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderTriTONWallet = blockchain.openContract(
-    JettonWallet.create(await triTONPool.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderQuaTONWallet = blockchain.openContract(
-    JettonWallet.create(await quaTONPool.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderTriUSDWallet = blockchain.openContract(
-    JettonWallet.create(await triUSDPool.getWalletAddress(MockSettings.sender)),
-  );
-
-  const senderQuaUSDWallet = blockchain.openContract(
-    JettonWallet.create(await quaUSDPool.getWalletAddress(MockSettings.sender)),
-  );
+  // Initialize Sender Jetton Wallets using Promise.all
+  const [
+    senderStTONWallet,
+    senderTsTONWallet,
+    senderHTONWallet,
+    senderUSDTWallet,
+    senderUSDCWallet,
+    senderCrvUSDWallet,
+    senderScrvUSDWallet,
+    senderTriTONWallet,
+    senderQuaTONWallet,
+    senderTriUSDWallet,
+    senderQuaUSDWallet,
+  ] = await Promise.all([
+    stTON
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    tsTON
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    hTON.getWalletAddress(MockSettings.sender).then((address) => blockchain.openContract(JettonWallet.create(address))),
+    USDT.getWalletAddress(MockSettings.sender).then((address) => blockchain.openContract(JettonWallet.create(address))),
+    USDC.getWalletAddress(MockSettings.sender).then((address) => blockchain.openContract(JettonWallet.create(address))),
+    CRV_USD.getWalletAddress(MockSettings.sender).then((address) =>
+      blockchain.openContract(JettonWallet.create(address)),
+    ),
+    SCRV_USD.getWalletAddress(MockSettings.sender).then((address) =>
+      blockchain.openContract(JettonWallet.create(address)),
+    ),
+    triTONPool
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    quaTONPool
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    triUSDPool
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    quaUSDPool
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+  ]);
 
   const blockNumber = MockSettings.emulateBlockSeq;
   // Utility functions
