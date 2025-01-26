@@ -32,6 +32,7 @@ import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse
 import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calculateExecutionPrice } from '../utils';
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
+import { AssetResponse } from '../types/api';
 
 export type TorchSDKOptions = {
   apiEndpoint?: string;
@@ -93,7 +94,10 @@ export class TorchSDK {
   }
 
   async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate> {
-    return await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
+    console.time('==== API.getSignedRates =====');
+    const result = await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
+    console.timeEnd('==== API.getSignedRates =====');
+    return result;
   }
 
   /**
@@ -899,6 +903,13 @@ export class TorchSDK {
       options,
     );
   }
+
+  private getAssetResponseFromPool(pool: PoolResponse, asset: Asset): AssetResponse {
+    const poolAssets = pool.assets.concat(pool.lpAsset);
+    const assetInfo = poolAssets.find(({ asset: assetInfo }) => assetInfo.equals(asset));
+    if (!assetInfo) throw new Error('Asset not found in pool');
+    return assetInfo;
+  }
   /**
    * Simulates a swap operation and returns detailed information about the expected outcome
    *
@@ -932,10 +943,8 @@ export class TorchSDK {
     params.routes = routes;
 
     // Get inDecimals, outDecimals
-    const inDecimals = hops[0].pool.assets.find(({ asset }) => asset.equals(parsedParams.assetIn))?.decimals;
-    const outDecimals = hops[hops.length - 1].pool.assets.find(({ asset }) =>
-      asset.equals(parsedParams.assetOut),
-    )?.decimals;
+    const inDecimals = this.getAssetResponseFromPool(hops[0].pool, parsedParams.assetIn).decimals;
+    const outDecimals = this.getAssetResponseFromPool(hops[hops.length - 1].pool, parsedParams.assetOut).decimals;
 
     if (!inDecimals || !outDecimals) throw new Error('InDecimals or OutDecimals not found');
 

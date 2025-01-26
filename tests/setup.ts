@@ -12,10 +12,11 @@ export const initialize = async () => {
   const blockchain = await Blockchain.create({
     storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(client), MockSettings.emulateBlockSeq),
   });
+
   const torchSDK = new TorchSDK({
     factoryAddress: FactoryConfig.factoryAddress,
-    apiEndpoint: 'https://testnet-api.torch.finance',
-    oracleEndpoint: 'https://testnet-oracle.torch.finance/',
+    apiEndpoint: 'https://testnet-api-server-asia-1074685515738.asia-east1.run.app',
+    oracleEndpoint: 'https://testnet-oracle-1074685515738.asia-east1.run.app',
   });
 
   // Initialize Sender
@@ -52,6 +53,7 @@ export const initialize = async () => {
     JettonWallet.create(await quaTONPool.getWalletAddress(MockSettings.sender)),
   );
 
+  const blockNumber = MockSettings.emulateBlockSeq;
   // Utility functions
   const send = async (args: SenderArguments[] | SenderArguments) => {
     if (!Array.isArray(args)) {
@@ -117,5 +119,6 @@ export const initialize = async () => {
     send,
     swapImpactTriTON,
     swapImpactQuaTON,
+    blockNumber,
   };
 };
