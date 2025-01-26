@@ -924,7 +924,7 @@ export class TorchSDK {
     }
 
     // Calculate minAmountOuts
-    const { amountIn, amountOuts, minAmountOuts } = await this.calculateSwapMinAmountOuts(params, simulateResults);
+    const { amountIn, minAmountOuts } = await this.calculateSwapMinAmountOuts(params, simulateResults);
 
     if (!simulateResults.every((result) => result.mode === parsedParams.mode))
       throw new Error('Simulate swap result mode must match swap mode');
@@ -943,12 +943,12 @@ export class TorchSDK {
         result: {
           mode: 'ExactIn',
           routes,
-          amountOut: amountOuts[0],
-          minAmountOut: minAmountOuts?.at(0),
+          amountOut: lastDetail.amountOut,
+          minAmountOut: minAmountOuts?.at(minAmountOuts.length - 1),
           details: simulateResults as SimulateSwapExactInResult[],
           executionPrice: calculateExecutionPrice(
             { amount: amountIn, decimals: inDecimals },
-            { amount: amountOuts[0], decimals: outDecimals },
+            { amount: lastDetail.amountOut, decimals: outDecimals },
           ),
         },
         getSwapPayload: async (address: Address, options?: { blockNumber?: number }) => {
