@@ -92,8 +92,12 @@ export class TorchSDK {
     this.cachedPools = await this.api.getPools();
   }
 
-  async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate> {
-    return await this.api.getSignedRates(pools.filter((pool) => pool.useRates).map((pool) => pool.address));
+  async getSignedRatesGivenPools(pools: PoolResponse[]): Promise<SignedRate | null> {
+    const poolNeedRates = pools.filter((pool) => pool.useRates).map((pool) => pool.address);
+    if (poolNeedRates.length === 0) {
+      return null;
+    }
+    return await this.api.getSignedRates(poolNeedRates);
   }
 
   /**
@@ -592,7 +596,7 @@ export class TorchSDK {
     amountIn: bigint,
     minAmountOuts: bigint[] | null,
     hops: Hop[],
-    signedRate?: SignedRate,
+    signedRate: SignedRate | null,
     options?: { blockNumber?: number },
   ): Promise<SenderArguments> {
     const factory = this.openFactory(options?.blockNumber);
@@ -678,7 +682,7 @@ export class TorchSDK {
     metaAllocation: Allocation | undefined,
     minAmountOut: bigint | null,
     nextMinAmountOut: bigint | null,
-    signedRate: SignedRate,
+    signedRate: SignedRate | null,
     options?: { blockNumber?: number; simulateResult?: SimulateDepositResponse },
   ): Promise<SenderArguments[]> {
     const parsedParams = DepositParamsSchema.parse(params);
@@ -714,7 +718,7 @@ export class TorchSDK {
     withdrawAsset: Asset | undefined,
     minAmountOuts: Allocation[] | null,
     nextMinAmountOuts: Allocation[] | null,
-    signedRate: SignedRate,
+    signedRate: SignedRate | null,
     options?: { blockNumber?: number },
   ): Promise<SenderArguments> {
     const parsedParams = WithdrawParamsSchema.parse(params);

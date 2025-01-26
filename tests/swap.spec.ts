@@ -1,7 +1,7 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { SwapParams, TorchSDK } from '../src';
+import { SwapParams, TorchSDK, toUnit } from '../src';
 import { initialize } from './setup';
-import { PoolAssets, PoolConfig } from './config';
+import { Decimals, PoolAssets, PoolConfig } from './config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { JettonMaster, JettonWallet } from '@ton/ton';
 import {
@@ -111,10 +111,10 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapExactInParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
-        routes: [PoolConfig.triTONPoolAddress],
+        routes: [PoolConfig.TRI_TON_POOL_ADDRESS],
       };
 
       // Send swap
@@ -133,8 +133,8 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapExactInParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
       };
 
@@ -155,8 +155,8 @@ describe('Swap Testcases', () => {
       // Build swap exact out payload
       const swapExactOutParams: SwapParams = {
         mode: 'ExactOut',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountOut: swapOutAmount,
       };
 
@@ -178,8 +178,8 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
         minAmountOut: toNano('1'),
       };
@@ -194,8 +194,8 @@ describe('Swap Testcases', () => {
       // Build swap payload with slippage
       const swapSlipageParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
         slippageTolerance: 0.01,
       };
@@ -220,8 +220,8 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
         slippageTolerance: 0.01,
       };
@@ -245,8 +245,8 @@ describe('Swap Testcases', () => {
       // Build swap payload with slippage
       const swapSlipageParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
         slippageTolerance: 0.01,
       };
@@ -271,8 +271,8 @@ describe('Swap Testcases', () => {
       const amountOut = toNano('1');
       const swapParams: SwapParams = {
         mode: 'ExactOut',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountOut,
         minAmountOut: toNano('1.5'),
       };
@@ -290,8 +290,8 @@ describe('Swap Testcases', () => {
       const amountOut = toNano('1');
       const swapSlipageParams: SwapParams = {
         mode: 'ExactOut',
-        assetIn: PoolAssets.tsTONAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TS_TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountOut,
         slippageTolerance: 0.01,
       };
@@ -316,8 +316,8 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tonAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
       };
 
@@ -337,8 +337,8 @@ describe('Swap Testcases', () => {
       const amountIn = toNano('0.05');
       const swapParams: SwapParams = {
         mode: 'ExactIn',
-        assetIn: PoolAssets.tonAsset,
-        assetOut: PoolAssets.stTONAsset,
+        assetIn: PoolAssets.TON_ASSET,
+        assetOut: PoolAssets.ST_TON_ASSET,
         amountIn,
         recipient: recipient.address,
       };
@@ -359,10 +359,10 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
-          routes: [PoolConfig.triTONPoolAddress, PoolConfig.quaTONPoolAddress],
+          routes: [PoolConfig.TRI_TON_POOL_ADDRESS, PoolConfig.QUA_TON_POOL_ADDRESS],
         };
 
         // Send swap
@@ -381,8 +381,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
         };
 
@@ -405,8 +405,8 @@ describe('Swap Testcases', () => {
         // Build swap payload
         const swapExactOutParams: SwapParams = {
           mode: 'ExactOut',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountOut: hTONBalIncrease,
         };
 
@@ -433,8 +433,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
           recipient: recipient.address,
         };
@@ -452,8 +452,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
           minAmountOut: toNano('1'), // This is minAmountOut is too big, so it should be refunded in the first pool
         };
@@ -474,11 +474,17 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
-          minAmountOut: 44546240n,
         };
+
+        // Simulate to get amount out
+        const simulateResult = await torchSDK.simulateSwap(swapParams);
+        if (simulateResult.result.mode != 'ExactIn') {
+          throw new Error('Simulate result is not ExactIn');
+        }
+        swapParams.minAmountOut = simulateResult.result.amountOut - 100n; // Make it can pass the first pool minAmountOut check, but not pass the second pool minAmountOut check
 
         // Send swap
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
@@ -508,8 +514,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -518,7 +524,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the first pool
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -539,8 +545,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.hTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.HTON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -575,10 +581,10 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
-          routes: [PoolConfig.quaTONPoolAddress, PoolConfig.triTONPoolAddress],
+          routes: [PoolConfig.QUA_TON_POOL_ADDRESS, PoolConfig.TRI_TON_POOL_ADDRESS],
         };
 
         // Send swap
@@ -596,8 +602,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
         };
 
@@ -619,8 +625,8 @@ describe('Swap Testcases', () => {
         // Build swap payload
         const swapExactOutParams: SwapParams = {
           mode: 'ExactOut',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountOut: expectedAmountOut,
         };
 
@@ -647,8 +653,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
           recipient: recipient.address,
         };
@@ -666,8 +672,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           minAmountOut: toNano('1'), // This is minAmountOut is too big, so it should be refunded in the first pool
         };
@@ -686,13 +692,25 @@ describe('Swap Testcases', () => {
       it('should refund TriTON to sender when min amount out is not met (hTON -> stTON ExactIn)', async () => {
         // Build swap payload
         const amountIn = toNano('0.05');
+        // Simulate to get amount out
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
-          minAmountOut: 57811266n,
         };
+        const simulateResult = await torchSDK.simulateSwap({
+          mode: 'ExactIn',
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
+          amountIn,
+        });
+
+        if (simulateResult.result.mode != 'ExactIn') {
+          throw new Error('Simulate result is not ExactIn');
+        }
+
+        swapParams.minAmountOut = simulateResult.result.amountOut - 100n; // Make it can pass the first pool minAmountOut check, but not pass the second pool minAmountOut check
 
         // Send swap
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
@@ -722,8 +740,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -732,7 +750,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
-        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('5'));
+        await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -753,8 +771,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -763,7 +781,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -789,8 +807,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
         };
 
@@ -810,8 +828,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
         };
 
@@ -833,8 +851,8 @@ describe('Swap Testcases', () => {
         // Build swap payload
         const swapExactOutParams: SwapParams = {
           mode: 'ExactOut',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountOut: expectedAmountOut,
         };
 
@@ -861,8 +879,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
           recipient: recipient.address,
         };
@@ -880,10 +898,10 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
-          minAmountOut: 10n ** 18n,
+          minAmountOut: toUnit(1, Decimals.TRI_TON_DECIMALS), // This is minAmountOut is too big, so it should be refunded in the first pool
         };
 
         // Send swap
@@ -897,16 +915,22 @@ describe('Swap Testcases', () => {
         await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
       });
 
-      it('should refund quaTON to sender when min amount out is not met (tsTON -> quaTON ExactIn)', async () => {
+      it('should refund TriTON to sender when min amount out is not met (tsTON -> quaTON ExactIn)', async () => {
         // Build swap payload
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
-          minAmountOut: 49435630261982097n,
         };
+
+        // Simulate to get amount out
+        const simulateResult = await torchSDK.simulateSwap(swapParams);
+        if (simulateResult.result.mode != 'ExactIn') {
+          throw new Error('Simulate result is not ExactIn');
+        }
+        swapParams.minAmountOut = simulateResult.result.amountOut - 100n; // Make it can pass the first pool minAmountOut check, but not pass the second pool minAmountOut check
 
         // Send swap
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
@@ -926,6 +950,9 @@ describe('Swap Testcases', () => {
 
         // Sender quaTON balance should not be changed
         await checkJettonBalNotChanged(senderQuaTONWallet, senderQuaTONBalBefore);
+
+        // Sender triTON balance should be increased
+        await checkJettonBalIncrease(senderTriTONWallet, senderTriTONBalBefore);
       });
 
       it('should refund tsTON to sender when slippage is not met (tsTON -> quaTON ExactIn)', async () => {
@@ -933,8 +960,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -943,7 +970,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -964,8 +991,8 @@ describe('Swap Testcases', () => {
         const amountIn = toNano('0.05');
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.tsTONAsset,
-          assetOut: PoolAssets.quaTONAsset,
+          assetIn: PoolAssets.TS_TON_ASSET,
+          assetOut: PoolAssets.QUA_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -997,10 +1024,10 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
-          routes: [PoolConfig.quaTONPoolAddress, PoolConfig.triTONPoolAddress],
+          routes: [PoolConfig.QUA_TON_POOL_ADDRESS, PoolConfig.TRI_TON_POOL_ADDRESS],
         };
 
         // Send swap
@@ -1018,8 +1045,8 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapExactInParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
         };
 
@@ -1041,8 +1068,8 @@ describe('Swap Testcases', () => {
         // Build swap payload
         const swapExactOutParams: SwapParams = {
           mode: 'ExactOut',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountOut: expectedAmountOut,
         };
 
@@ -1069,8 +1096,8 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn,
           recipient: recipient.address,
         };
@@ -1094,8 +1121,8 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           minAmountOut: toNano('1'),
         };
@@ -1113,14 +1140,20 @@ describe('Swap Testcases', () => {
 
       it('should refund TriTON to sender when min amount out is not met (quaTON -> stTON ExactIn)', async () => {
         // Build swap payload
-        const amountIn = 10n ** 16n;
+        const amountIn = toUnit(0.01, Decimals.QUA_TON_DECIMALS);
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
-          minAmountOut: 10544497n,
         };
+
+        // Simulate to get amount out
+        const simulateResult = await torchSDK.simulateSwap(swapParams);
+        if (simulateResult.result.mode != 'ExactIn') {
+          throw new Error('Simulate result is not ExactIn');
+        }
+        swapParams.minAmountOut = simulateResult.result.amountOut - 100n; // Make it can pass the first pool minAmountOut check, but not pass the second pool minAmountOut check
 
         // Send swap
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
@@ -1147,8 +1180,8 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -1159,8 +1192,8 @@ describe('Swap Testcases', () => {
         // Someone swap to make the price fluctuate in QuaTON pool, so that it will be refunded in the second pool
         const swapFluctuateParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.hTONAsset,
-          assetOut: PoolAssets.tsTONAsset,
+          assetIn: PoolAssets.HTON_ASSET,
+          assetOut: PoolAssets.TS_TON_ASSET,
           amountIn: toNano('1'),
         };
         const sendFluctuateArgs = await torchSDK.getSwapPayload(sender, swapFluctuateParams);
@@ -1185,8 +1218,8 @@ describe('Swap Testcases', () => {
         const amountIn = 10n ** 16n;
         const swapParams: SwapParams = {
           mode: 'ExactIn',
-          assetIn: PoolAssets.quaTONAsset,
-          assetOut: PoolAssets.stTONAsset,
+          assetIn: PoolAssets.QUA_TON_ASSET,
+          assetOut: PoolAssets.ST_TON_ASSET,
           amountIn,
           slippageTolerance: 0.01,
         };
@@ -1195,7 +1228,7 @@ describe('Swap Testcases', () => {
         const sendArgs = await torchSDK.getSwapPayload(sender, swapParams);
 
         // Someone swap to make the price fluctuate in TriTON pool, so that it will be refunded in the second pool
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();

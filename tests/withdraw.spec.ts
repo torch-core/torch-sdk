@@ -164,7 +164,7 @@ describe('Withdraw Testcases', () => {
         pool: triTONPool.address,
         burnLpAmount: 1n * 10n ** 18n,
         queryId: 1n,
-        withdrawAsset: PoolAssets.tsTONAsset,
+        withdrawAsset: PoolAssets.TS_TON_ASSET,
       };
 
       // Send withdraw
@@ -191,7 +191,7 @@ describe('Withdraw Testcases', () => {
         pool: triTONPool.address,
         burnLpAmount: 1n * 10n ** 18n,
         queryId: 1n,
-        withdrawAsset: PoolAssets.tsTONAsset,
+        withdrawAsset: PoolAssets.TS_TON_ASSET,
         recipient: recipient.address,
       };
 
@@ -246,14 +246,14 @@ describe('Withdraw Testcases', () => {
         burnLpAmount: 1n * 10n ** 18n,
         queryId: 1n,
         slippageTolerance: 0.01,
-        withdrawAsset: PoolAssets.stTONAsset,
+        withdrawAsset: PoolAssets.ST_TON_ASSET,
       };
 
       // Send withdraw
       const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
       // Someone swap to make the price fluctuate
-      await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+      await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
       // Reset balance
       senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -430,7 +430,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
           },
         };
 
@@ -456,7 +456,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
           },
           recipient: recipient.address,
         };
@@ -483,7 +483,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.tsTONAsset,
+            withdrawAsset: PoolAssets.TS_TON_ASSET,
           },
           slippageTolerance: 0.01,
         };
@@ -492,7 +492,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
+        await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
 
         // Reset balance
         senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -521,7 +521,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           },
           slippageTolerance: 0.01,
         };
@@ -530,7 +530,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -561,7 +561,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           },
         };
 
@@ -590,7 +590,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           },
           recipient: recipient.address,
         };
@@ -620,7 +620,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           },
           slippageTolerance: 0.01,
         };
@@ -658,7 +658,7 @@ describe('Withdraw Testcases', () => {
           nextWithdraw: {
             pool: triTONPool.address,
             mode: 'Single',
-            withdrawAsset: PoolAssets.stTONAsset,
+            withdrawAsset: PoolAssets.ST_TON_ASSET,
           },
           slippageTolerance: 0.01,
         };
@@ -667,7 +667,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactTriTON(PoolAssets.tsTONAsset, PoolAssets.stTONAsset, toNano('5'));
+        await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
 
         // Reset balance
         senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -784,7 +784,7 @@ describe('Withdraw Testcases', () => {
         const withdrawArgs = await torchSDK.getWithdrawPayload(sender, withdrawParams);
 
         // Someone swap to make the price fluctuate
-        await swapImpactQuaTON(PoolAssets.hTONAsset, PoolAssets.triTONAsset, toNano('1'));
+        await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
 
         // Reset balance
         senderTriTONBalBefore = await senderTriTONWallet.getBalance();
