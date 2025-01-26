@@ -1,5 +1,5 @@
 ---
-'@torch-finance/sdk': patch
+'@torch-finance/sdk': minor
 ---
 
 Simulate Swap/Deposit/Withdraw: Now returns a getPayload function, allowing the transaction BOC to be retrieved directly after simulation, reducing redundant processes previously found in getPayload.
