@@ -2,6 +2,7 @@ import { DepositNext, SwapNext, WithdrawNext } from '@torch-finance/dex-contract
 import { Allocation, Asset } from '@torch-finance/core';
 
 import { Hop } from '../types/common';
+
 /**
  * Build the next operation in the transaction sequence
  * @param hops - The hops to build the next operation

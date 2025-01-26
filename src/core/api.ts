@@ -3,7 +3,6 @@ import axios, { AxiosInstance } from 'axios';
 import { Address } from '@ton/core';
 // Torch Libs
 import { Asset, SignedRate } from '@torch-finance/core';
-import { SimulatorState } from '@torch-finance/simulator';
 import { SimulateWithdrawResult, SimulateDepositResult, SimulateSwapResult } from '@torch-finance/dex-contract-wrapper';
 // Internal Types
 import { Hop, HopRaw, HopSchema } from '../types/common';
@@ -16,18 +15,11 @@ import {
   WithdrawParamsSchema,
 } from '../types/sdk';
 import {
-  // Asset
-  AssetRawResponse,
-  AssetResponse,
-  AssetResponseSchema,
   // Pool
   PoolRawResponse,
   PoolResponse,
   PoolResponseSchema,
-  // Lp Account
-  LpAccountRawResponse,
-  LpAccountResponse,
-  LpAccountResponseSchema,
+
   // GraphQL
   GqlQuery,
   GraphQLResponse,
@@ -62,44 +54,6 @@ export class TorchAPI {
       query: GqlQuery.SDK_SYNC_POOLS,
     });
     return data.data.pools.map((pool) => PoolResponseSchema.parse(pool));
-  }
-
-  async getPoolStates(): Promise<SimulatorState[]> {
-    const { data } = await this.api.post<{ pools: SimulatorState[] }>('/graphql', {
-      query: `
-          query {
-            pools {
-              ...PoolResponse
-            }
-          }
-        `,
-    });
-    return data.pools;
-  }
-
-  async getExchangableAssets(assetIn?: Asset): Promise<AssetResponse[]> {
-    const { data } = await this.api.post<{ tokens: AssetRawResponse[] }>('/graphql', {
-      query: `
-          query {
-            assets(assetInId: $assetInId) {
-              ...Asset
-            }
-          }
-        `,
-      variables: {
-        assetInId: assetIn?.ID,
-      },
-    });
-    return data.tokens.map((token) => AssetResponseSchema.parse(token));
-  }
-
-  async getActiveLpAccounts(lpProvider: Address): Promise<LpAccountResponse[]> {
-    const { data } = await this.api.get<{ lpAccounts: LpAccountRawResponse[] }>('/lp-accounts/active', {
-      params: {
-        lpProvider: lpProvider.toString(),
-      },
-    });
-    return data.lpAccounts.map((data) => LpAccountResponseSchema.parse(data));
   }
 
   async getSignedRates(poolAddresses: Address[]): Promise<SignedRate> {
