@@ -222,11 +222,17 @@ export class TorchSDK {
     simulateResults?: SimulateSwapResult[],
   ): Promise<{
     amountIn: bigint;
-    amountOuts: bigint[];
     minAmountOuts: bigint[] | null;
   }> {
     const parsedParams = SwapParamsSchema.parse(params);
     let amountIn = parsedParams.mode === 'ExactIn' ? parsedParams.amountIn : 0n;
+    if (parsedParams.mode === 'ExactIn' && !parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
+      return {
+        amountIn,
+        minAmountOuts: null,
+      };
+    }
+
     const amountOuts: bigint[] = [];
     const minAmountOuts: bigint[] = [];
 
@@ -273,10 +279,9 @@ export class TorchSDK {
       amountOuts.push(amountOut);
     }
 
-    if (!parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
+    if (parsedParams.mode === 'ExactOut' && !parsedParams.slippageTolerance && !parsedParams.minAmountOut) {
       return {
         amountIn,
-        amountOuts,
         minAmountOuts: null,
       };
     }
@@ -356,7 +361,6 @@ export class TorchSDK {
 
     return {
       amountIn,
-      amountOuts,
       minAmountOuts: minAmountOuts.length > 0 ? minAmountOuts : null,
     };
   }
