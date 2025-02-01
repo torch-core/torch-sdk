@@ -1,20 +1,23 @@
 import { Blockchain, internal, RemoteBlockchainStorage, wrapTonClient4ForRemote } from '@ton/sandbox';
 import { JettonMaster, JettonWallet, SenderArguments, toNano, TonClient4 } from '@ton/ton';
-import { SwapParams, TorchSDK } from '../../src';
-import { FactoryConfig, MockSettings, PoolAssets, PoolConfig } from './config';
+import { SwapParams, TorchSDK, toUnit } from '../../src';
+import { Decimals, FactoryConfig, MockSettings, PoolAssets, PoolConfig } from './config';
 import { Factory, Pool } from '@torch-finance/dex-contract-wrapper';
 import { Asset } from '@torch-finance/core';
 
 const endpoint = 'https://testnet-v4.tonhubapi.com';
 const client = new TonClient4({ endpoint });
 export const initialize = async () => {
+  const lastBlock = await client.getLastBlock();
+  const blockSeq = lastBlock.last.seqno;
+
   // Core blockchain and SDK initialization
   const blockchain = await Blockchain.create({
-    storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(client), MockSettings.emulateBlockSeq),
+    storage: new RemoteBlockchainStorage(wrapTonClient4ForRemote(client), blockSeq),
   });
 
   const torchSDK = new TorchSDK({
-    factoryAddress: FactoryConfig.factoryAddress,
+    factoryAddress: FactoryConfig.FACTORY_ADDRESS,
     tonClient: new TonClient4({ endpoint: 'https://testnet-v4.tonhubapi.com' }),
     apiEndpoint: 'https://testnet-api.torch.finance',
     oracleEndpoint: 'https://testnet-oracle.torch.finance',
@@ -24,7 +27,7 @@ export const initialize = async () => {
   const sender = MockSettings.sender;
 
   // Initialize Factory
-  const factory = blockchain.openContract(Factory.createFromAddress(FactoryConfig.factoryAddress));
+  const factory = blockchain.openContract(Factory.createFromAddress(FactoryConfig.FACTORY_ADDRESS));
 
   // Initialize pools
   const triTONPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.TRI_TON_POOL_ADDRESS));
@@ -33,13 +36,13 @@ export const initialize = async () => {
   const quaUSDPool = blockchain.openContract(Pool.createFromAddress(PoolConfig.QUA_USD_POOL_ADDRESS));
 
   // Initialize Jetton Master
-  const stTON = blockchain.openContract(JettonMaster.create(PoolAssets.ST_TON_ASSET.jettonMaster!));
-  const tsTON = blockchain.openContract(JettonMaster.create(PoolAssets.TS_TON_ASSET.jettonMaster!));
-  const hTON = blockchain.openContract(JettonMaster.create(PoolAssets.HTON_ASSET.jettonMaster!));
-  const USDT = blockchain.openContract(JettonMaster.create(PoolAssets.USDT_ASSET.jettonMaster!));
-  const USDC = blockchain.openContract(JettonMaster.create(PoolAssets.USDC_ASSET.jettonMaster!));
-  const CRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.CRV_USD_ASSET.jettonMaster!));
-  const SCRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.SCRV_USD_ASSET.jettonMaster!));
+  const stTON = blockchain.openContract(JettonMaster.create(PoolAssets.ST_TON.jettonMaster!));
+  const tsTON = blockchain.openContract(JettonMaster.create(PoolAssets.TS_TON.jettonMaster!));
+  const hTON = blockchain.openContract(JettonMaster.create(PoolAssets.H_TON.jettonMaster!));
+  const USDT = blockchain.openContract(JettonMaster.create(PoolAssets.USDT.jettonMaster!));
+  const USDC = blockchain.openContract(JettonMaster.create(PoolAssets.USDC.jettonMaster!));
+  const CRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.CRV_USD.jettonMaster!));
+  const SCRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.SCRV_USD.jettonMaster!));
 
   // Initialize Sender Jetton Wallets using Promise.all
   const [
@@ -103,9 +106,9 @@ export const initialize = async () => {
   };
 
   const swapImpactTriTON = async (
-    assetIn: Asset = PoolAssets.TS_TON_ASSET,
-    assetOut: Asset = PoolAssets.ST_TON_ASSET,
-    amountIn: bigint = toNano('0.5'),
+    assetIn: Asset = PoolAssets.TS_TON,
+    assetOut: Asset = PoolAssets.ST_TON,
+    amountIn: bigint = toNano('50'),
   ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',
@@ -118,9 +121,9 @@ export const initialize = async () => {
   };
 
   const swapImpactQuaTON = async (
-    assetIn: Asset = PoolAssets.TRI_TON_ASSET,
-    assetOut: Asset = PoolAssets.HTON_ASSET,
-    amountIn: bigint = 1n * 10n ** 18n,
+    assetIn: Asset = PoolAssets.TRI_TON,
+    assetOut: Asset = PoolAssets.H_TON,
+    amountIn: bigint = toUnit(50, Decimals.TRI_TON),
   ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',
