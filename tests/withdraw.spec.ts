@@ -213,7 +213,7 @@ describe('Withdraw Testcases (Faster)', () => {
             pool: triTONPool.address,
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
-            withdrawAsset: PoolAssets.TS_TON_ASSET,
+            withdrawAsset: PoolAssets.TS_TON,
           };
 
           const withdrawArgs = await getPayload(torchSDK, withdrawParams, sender);
@@ -237,7 +237,7 @@ describe('Withdraw Testcases (Faster)', () => {
             pool: triTONPool.address,
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
-            withdrawAsset: PoolAssets.TS_TON_ASSET,
+            withdrawAsset: PoolAssets.TS_TON,
             recipient: recipient.address,
           };
 
@@ -287,10 +287,10 @@ describe('Withdraw Testcases (Faster)', () => {
             burnLpAmount: 1n * 10n ** 18n,
             queryId: 1n,
             slippageTolerance: 0.01,
-            withdrawAsset: PoolAssets.ST_TON_ASSET,
+            withdrawAsset: PoolAssets.ST_TON,
           };
 
-          await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+          await swapImpactTriTON(PoolAssets.TS_TON, PoolAssets.ST_TON, toNano('50'));
 
           // Reset balance
           senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -457,7 +457,7 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.TS_TON_ASSET,
+                withdrawAsset: PoolAssets.TS_TON,
               },
             };
 
@@ -483,7 +483,7 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.TS_TON_ASSET,
+                withdrawAsset: PoolAssets.TS_TON,
               },
               recipient: recipient.address,
             };
@@ -510,12 +510,12 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.TS_TON_ASSET,
+                withdrawAsset: PoolAssets.TS_TON,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
+            await swapImpactQuaTON(PoolAssets.H_TON, PoolAssets.TRI_TON, toNano('45'));
 
             // Reset balance
             senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -546,12 +546,12 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.ST_TON_ASSET,
+                withdrawAsset: PoolAssets.ST_TON,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+            await swapImpactTriTON(PoolAssets.TS_TON, PoolAssets.ST_TON, toNano('50'));
 
             // Reset balance
             senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -584,7 +584,7 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.ST_TON_ASSET,
+                withdrawAsset: PoolAssets.ST_TON,
               },
             };
 
@@ -613,7 +613,7 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.ST_TON_ASSET,
+                withdrawAsset: PoolAssets.ST_TON,
               },
               recipient: recipient.address,
             };
@@ -643,7 +643,7 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.ST_TON_ASSET,
+                withdrawAsset: PoolAssets.ST_TON,
               },
               slippageTolerance: 0.01,
             };
@@ -679,12 +679,12 @@ describe('Withdraw Testcases (Faster)', () => {
               nextWithdraw: {
                 pool: triTONPool.address,
                 mode: 'Single',
-                withdrawAsset: PoolAssets.ST_TON_ASSET,
+                withdrawAsset: PoolAssets.ST_TON,
               },
               slippageTolerance: 0.01,
             };
 
-            await swapImpactTriTON(PoolAssets.TS_TON_ASSET, PoolAssets.ST_TON_ASSET, toNano('5'));
+            await swapImpactTriTON(PoolAssets.TS_TON, PoolAssets.ST_TON, toNano('50'));
 
             // Reset balance
             senderStTONBalBefore = await senderStTONWallet.getBalance();
@@ -799,7 +799,7 @@ describe('Withdraw Testcases (Faster)', () => {
               slippageTolerance: 0.01,
             };
 
-            await swapImpactQuaTON(PoolAssets.HTON_ASSET, PoolAssets.TRI_TON_ASSET, toNano('1'));
+            await swapImpactQuaTON(PoolAssets.H_TON, PoolAssets.TRI_TON, toNano('45'));
 
             // Reset balance
             senderTriTONBalBefore = await senderTriTONWallet.getBalance();
@@ -875,7 +875,7 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
             pool: triUSDPool.address,
-            burnLpAmount: toUnit(2, Decimals.TRI_USD_DECIMALS),
+            burnLpAmount: toUnit(2, Decimals.TRI_USD),
             queryId: 1n,
           };
 
@@ -905,9 +905,9 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Single',
             pool: triUSDPool.address,
-            burnLpAmount: toUnit(1, Decimals.TRI_USD_DECIMALS),
+            burnLpAmount: toUnit(1, Decimals.TRI_USD),
             queryId: 1n,
-            withdrawAsset: PoolAssets.USDT_ASSET,
+            withdrawAsset: PoolAssets.USDT,
           };
 
           // Get withdraw payload
@@ -931,7 +931,7 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
             pool: quaUSDPool.address,
-            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            burnLpAmount: toUnit(1, Decimals.QUA_USD),
             queryId: 1n,
             nextWithdraw: {
               pool: triUSDPool.address,
@@ -967,12 +967,12 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Balanced',
             pool: quaUSDPool.address,
-            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            burnLpAmount: toUnit(1, Decimals.QUA_USD),
             queryId: 1n,
             nextWithdraw: {
               pool: triUSDPool.address,
               mode: 'Single',
-              withdrawAsset: PoolAssets.USDT_ASSET,
+              withdrawAsset: PoolAssets.USDT,
             },
           };
 
@@ -1001,7 +1001,7 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Single',
             pool: quaUSDPool.address,
-            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            burnLpAmount: toUnit(1, Decimals.QUA_USD),
             queryId: 1n,
             nextWithdraw: {
               pool: triUSDPool.address,
@@ -1037,12 +1037,12 @@ describe('Withdraw Testcases (Faster)', () => {
           const withdrawParams: WithdrawParams = {
             mode: 'Single',
             pool: quaUSDPool.address,
-            burnLpAmount: toUnit(1, Decimals.QUA_USD_DECIMALS),
+            burnLpAmount: toUnit(1, Decimals.QUA_USD),
             queryId: 1n,
             nextWithdraw: {
               pool: triUSDPool.address,
               mode: 'Single',
-              withdrawAsset: PoolAssets.USDT_ASSET,
+              withdrawAsset: PoolAssets.USDT,
             },
           };
 
@@ -1073,7 +1073,7 @@ describe('Withdraw Testcases (Faster)', () => {
       return await simulateResponse.getWithdrawPayload(sender, { blockNumber });
     }),
 
-    createWithdrawTests('Withdraw Tests 123', async (sdk, params, sender) => {
+    createWithdrawTests('Withdraw Tests (Direct)', async (sdk, params, sender) => {
       return await sdk.getWithdrawPayload(sender, params, { blockNumber });
     }),
   ]);
