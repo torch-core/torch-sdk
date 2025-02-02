@@ -1,4 +1,10 @@
-import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
+import {
+  Blockchain,
+  BlockchainSnapshot,
+  internal,
+  SandboxContract,
+  TreasuryContract,
+} from '@ton/sandbox';
 import { DepositParams, TorchSDK, toUnit } from '../src';
 import { initialize } from './helper/setup';
 import { Decimals, PoolAssets } from './helper/config';
@@ -10,7 +16,7 @@ import {
   checkJettonBalNotChanged,
   checkTONBalDecrease,
 } from './helper/check';
-import { Pool } from '@torch-finance/dex-contract-wrapper';
+import { LpAccount, Pool } from '@torch-finance/dex-contract-wrapper';
 import { Allocation } from '@torch-finance/core';
 
 describe('Deposit Testcases', () => {
@@ -1073,6 +1079,79 @@ describe('Deposit Testcases', () => {
       });
     });
   }
+
+  describe('Cancel Deposit in LpAccount', () => {
+    let providerUSDTWallet: SandboxContract<JettonWallet>;
+    let providerUSDCWallet: SandboxContract<JettonWallet>;
+    let providerCRVUSDWallet: SandboxContract<JettonWallet>;
+    let providerUSDTBalBefore = 0n;
+    let providerUSDCBalBefore = 0n;
+    let providerCRVUSDBalBefore = 0n;
+
+    beforeEach(async () => {
+      providerUSDTWallet = blockchain.openContract(
+        JettonWallet.create(Address.parse('kQC6EYcRVg2-gTMbOxDLDmPJkdyPMo5eUMe5RYoyzAMlSQAB')),
+      );
+      providerUSDTBalBefore = await providerUSDTWallet.getBalance();
+      providerUSDCWallet = blockchain.openContract(
+        JettonWallet.create(Address.parse('kQDOCF86ut46U_aOl1kMkb27RIbGUqqK7zws-Rmu93p0CgKW')),
+      );
+      providerUSDCBalBefore = await providerUSDCWallet.getBalance();
+      providerCRVUSDWallet = blockchain.openContract(
+        JettonWallet.create(Address.parse('kQC6EYcRVg2-gTMbOxDLDmPJkdyPMo5eUMe5RYoyzAMlSQAB')),
+      );
+      providerCRVUSDBalBefore = await providerCRVUSDWallet.getBalance();
+    });
+
+    it('should cancel deposit in LpAccount without meta asset', async () => {
+      const lpAccount = blockchain.openContract(
+        LpAccount.createFromAddress(Address.parse('kQBuvm93yb4HshNJINyfcO6sYFVDjDbXoys8PJOMTtb8u-g2')),
+      );
+      const lpAccountData = await lpAccount.getLpAccountData();
+      const depositedAssetCount = lpAccountData.currentBalances.filter((balance) => balance.value > 0n).length;
+      const cancelDepositArgs = await lpAccount.getCancelDepositPayload(depositedAssetCount);
+      await blockchain.sendMessage(
+        internal({
+          from: lpAccountData.providerAddress,
+          to: cancelDepositArgs.to,
+          value: cancelDepositArgs.value,
+          body: cancelDepositArgs.body!,
+        }),
+      );
+
+      // Provider USDT balance should be increased
+      await checkJettonBalIncrease(providerUSDTWallet, providerUSDTBalBefore);
+
+      // Provider USDC balance should be increased
+      await checkJettonBalIncrease(providerUSDCWallet, providerUSDCBalBefore);
+    });
+
+    it('should cancel deposit in LpAccount with meta asset', async () => {
+      const lpAccount = blockchain.openContract(
+        LpAccount.createFromAddress(Address.parse('0QDoOiiY7R5tHgo47qVYJzVwKR-LDqef8__TKrLdfwSB46HL')),
+      );
+      const lpAccountData = await lpAccount.getLpAccountData();
+      const depositedAssetCount = lpAccountData.currentBalances.filter((balance) => balance.value > 0n).length;
+      const cancelDepositArgs = await lpAccount.getCancelDepositPayload(depositedAssetCount);
+      await blockchain.sendMessage(
+        internal({
+          from: lpAccountData.providerAddress,
+          to: cancelDepositArgs.to,
+          value: cancelDepositArgs.value,
+          body: cancelDepositArgs.body!,
+        }),
+      );
+
+      // Provider USDT balance should be increased
+      await checkJettonBalIncrease(providerUSDTWallet, providerUSDTBalBefore);
+
+      // Provider USDC balance should be increased
+      await checkJettonBalIncrease(providerUSDCWallet, providerUSDCBalBefore);
+
+      // Provider CRV_USD balance should be increased
+      await checkJettonBalIncrease(providerCRVUSDWallet, providerCRVUSDBalBefore);
+    });
+  });
 
   Promise.all([
     createDepositTests('Deposit Tests (Simulation)', async (sender, params) => {
