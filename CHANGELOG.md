@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.2.0
+
+### Minor Changes
+
+- cfd6a10: Update pool graphql format
+
 ## 1.1.0
 
 ### Minor Changes
