@@ -5,52 +5,49 @@ export type GraphQLResponse<T> = {
 export const GqlQuery = {
   SDK_SYNC_POOLS: `
 query SDK_SYNC_POOLS {
-    pools {
+  pools {
     type
     address
     useRates
     assets {
-        asset {
-        currencyId
+      asset {
         id
+        type
+        currencyId
         jettonMaster
-        type
-        }
         decimals
-    }
-    basePool {
-        address
-        type
-        useRates
-        lpAsset {
-        asset {
-            currencyId
-            id
-            jettonMaster
-            type
-        }
-        decimals
-        }
-        assets {
-        asset {
-            currencyId
-            id
-            jettonMaster
-            type
-        }
-        decimals
-        }
+      }
     }
     lpAsset {
+      id
+      type
+      currencyId
+      jettonMaster
+      decimals
+    }
+    basePool {
+      type
+      address
+      useRates
+      address
+      assets {
         asset {
-        currencyId
-        id
-        jettonMaster
-        type
+          id
+          currencyId
+          jettonMaster
+          type
+          decimals
         }
+      }
+      lpAsset {
+        id
+        type
+        currencyId
+        jettonMaster
         decimals
+      }
     }
-    }
+  }
 }
         `,
 };

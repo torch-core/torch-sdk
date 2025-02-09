@@ -26,7 +26,7 @@ import {
   DepositParams,
   DepositParamsSchema,
 } from '../types/sdk';
-import { Hop, HopAction, HopSchema } from '../types/common';
+import { Hop, HopAction } from '../types/common';
 import { SimulateSwapResponse, SimulateDepositResponse, SimulateWithdrawResponse } from '../types/simulator';
 
 import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calculateExecutionPrice } from '../utils';
@@ -196,26 +196,21 @@ export class TorchSDK {
 
         const action = calHopAction(currentPool, currentAssetIn, selectedAssetOut, currentPoolLpAsset);
 
-        hops.push(
-          HopSchema.parse({
-            action: action as HopAction,
-            pool: currentPool,
-            assetIn: currentAssetIn,
-            assetOut: selectedAssetOut,
-          }),
-        );
+        hops.push({
+          action: action as HopAction,
+          pool: currentPool,
+          assetIn: currentAssetIn,
+          assetOut: selectedAssetOut,
+        });
         currentAssetIn = selectedAssetOut;
       } else {
         const action = calHopAction(currentPool, currentAssetIn, assetOut, currentPoolLpAsset);
-
-        hops.push(
-          HopSchema.parse({
-            action: action as HopAction,
-            pool: currentPool,
-            assetIn: currentAssetIn,
-            assetOut: assetOut,
-          }),
-        );
+        hops.push({
+          action: action as HopAction,
+          pool: currentPool,
+          assetIn: currentAssetIn,
+          assetOut: assetOut,
+        });
       }
     }
 
