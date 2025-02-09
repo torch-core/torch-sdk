@@ -16,13 +16,13 @@ import {
 } from '../types/sdk';
 import {
   // Pool
-  PoolRawResponse,
   PoolResponse,
   PoolResponseSchema,
 
   // GraphQL
   GqlQuery,
   GraphQLResponse,
+  PoolRawResponse,
 } from '../types/api';
 
 export type TorchAPIOptions = {
@@ -180,5 +180,14 @@ export class TorchAPI {
       virtualPriceBefore: BigInt(result.virtualPriceBefore),
       virtualPriceAfter: BigInt(result.virtualPriceAfter),
     }));
+  }
+
+  /**
+   * Get active lp accounts for a given lp provider
+   * /lpAccount/active?lpProvider=<lp Provider Address>
+   */
+  async getLpAccountActive(lpProvider: Address): Promise<Address[]> {
+    const { data } = await this.api.get<string[]>(`/lpAccount/active?lpProvider=${lpProvider.toString()}`);
+    return data.map((address) => Address.parse(address));
   }
 }

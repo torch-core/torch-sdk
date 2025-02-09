@@ -1,10 +1,4 @@
-import {
-  Blockchain,
-  BlockchainSnapshot,
-  internal,
-  SandboxContract,
-  TreasuryContract,
-} from '@ton/sandbox';
+import { Blockchain, BlockchainSnapshot, internal, SandboxContract, TreasuryContract } from '@ton/sandbox';
 import { DepositParams, TorchSDK, toUnit } from '../src';
 import { initialize } from './helper/setup';
 import { Decimals, PoolAssets } from './helper/config';
