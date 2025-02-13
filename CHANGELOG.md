@@ -1,5 +1,12 @@
 # @torch-finance/sdk
 
+## 1.2.1
+
+### Patch Changes
+
+- 2eadcc5: - If there's no deposit or slippage is not specified, skip the simulation
+  - Split calculateWithdrawMinAmountOuts into two separate functions
+
 ## 1.2.0
 
 ### Minor Changes
