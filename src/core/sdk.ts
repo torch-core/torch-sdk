@@ -51,8 +51,7 @@ export class TorchSDK {
 
   constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
-    // TODO: change to mainnet factory address
-    const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
+    const factoryAddress = options?.factoryAddress || Address.parse('EQCt4Hb5e1EdUuKqMcvzEdBqM7Ryyie--cbE1uOmy7MpY7Fx');
     const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
     const simulateMode = options?.simulateMode || 'offchain';

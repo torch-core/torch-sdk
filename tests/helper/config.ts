@@ -28,8 +28,8 @@ export abstract class PoolAssets {
 }
 
 export abstract class MockSettings {
-  static readonly emulateBlockSeq = 28108345;
-  static readonly sender = Address.parse('0QAHg-2Oy8Mc2BfENEaBcoDNXvHCu7mc28KkPIks8ZVqwmzg');
+  static readonly emulateBlockSeq = 28112908;
+  static readonly sender = Address.parse('0QBtvbUwvUMHWiYt85cqAjtMSTOoDCufuBEhh7m6czZTn0wF');
 }
 
 export abstract class Decimals {

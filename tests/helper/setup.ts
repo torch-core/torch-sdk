@@ -1,4 +1,9 @@
-import { Blockchain, internal, RemoteBlockchainStorage, wrapTonClient4ForRemote } from '@ton/sandbox';
+import {
+  Blockchain,
+  internal,
+  RemoteBlockchainStorage,
+  wrapTonClient4ForRemote,
+} from '@ton/sandbox';
 import { JettonMaster, JettonWallet, SenderArguments, toNano, TonClient4 } from '@ton/ton';
 import { SwapParams, TorchSDK, toUnit } from '../../src';
 import { Decimals, FactoryConfig, MockSettings, PoolAssets, PoolConfig } from './config';
@@ -123,7 +128,7 @@ export const initialize = async () => {
   const swapImpactQuaTON = async (
     assetIn: Asset = PoolAssets.TRI_TON,
     assetOut: Asset = PoolAssets.H_TON,
-    amountIn: bigint = toUnit(50, Decimals.TRI_TON),
+    amountIn: bigint = toUnit(2, Decimals.TRI_TON),
   ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',
