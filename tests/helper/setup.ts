@@ -123,7 +123,7 @@ export const initialize = async () => {
   const swapImpactQuaTON = async (
     assetIn: Asset = PoolAssets.TRI_TON,
     assetOut: Asset = PoolAssets.H_TON,
-    amountIn: bigint = toUnit(50, Decimals.TRI_TON),
+    amountIn: bigint = toUnit(2, Decimals.TRI_TON),
   ) => {
     const swapFluctuateParams: SwapParams = {
       mode: 'ExactIn',

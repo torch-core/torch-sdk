@@ -51,8 +51,7 @@ export class TorchSDK {
 
   constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
-    // TODO: change to mainnet factory address
-    const factoryAddress = options?.factoryAddress || Address.parse('EQBO9Xw9w0hJQx4kw3RSKu2LROZbtKg4icITKYp5enCQVGCu');
+    const factoryAddress = options?.factoryAddress || Address.parse('EQCt4Hb5e1EdUuKqMcvzEdBqM7Ryyie--cbE1uOmy7MpY7Fx');
     const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
     const simulateMode = options?.simulateMode || 'offchain';
@@ -381,16 +380,14 @@ export class TorchSDK {
   }> {
     const parsedParams = DepositParamsSchema.parse(params);
 
-    if (!simulateResults) {
-      simulateResults = await this.simulator.deposit(params);
-    }
-
-    if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be greater than 0');
-
     let minAmountOut: bigint | null = null;
     let nextMinAmountOut: bigint | null = null;
 
     if (parsedParams.slippageTolerance) {
+      if (!simulateResults) {
+        simulateResults = await this.simulator.deposit(params);
+      }
+      if (simulateResults.length === 0) throw new Error('Simulate deposit result length must be greater than 0');
       const simulateResult = simulateResults[0];
 
       minAmountOut = calculateMinAmountOutBySlippage(simulateResult.lpTokenOut, parsedParams.slippageTolerance);
@@ -408,7 +405,7 @@ export class TorchSDK {
 
     return { minAmountOut, nextMinAmountOut };
   }
-  private async calculateWithdrawMinAmountOuts(
+  private async calculateWithdrawAmountOuts(
     params: WithdrawParams,
     pools: PoolResponse[],
     withdrawSingleAsset: Asset | undefined,
@@ -416,19 +413,11 @@ export class TorchSDK {
   ): Promise<{
     amountOuts: Allocation[];
     nextAmountOuts: Allocation[] | null;
-    minAmountOuts: Allocation[] | null;
-    nextMinAmountOuts: Allocation[] | null;
   }> {
     const parsedParams = WithdrawParamsSchema.parse(params);
-
     const pool = pools[0];
     const nextPool = pools.at(1);
 
-    // Get minAmountOuts if slippageTolerance is provided
-    let amountOuts: Allocation[] = [];
-    let nextAmountOuts: Allocation[] | null = null;
-    let minAmountOuts: Allocation[] | null = null;
-    let nextMinAmountOuts: Allocation[] | null = null;
     if (!simulateResults) {
       simulateResults = await this.simulator.withdraw(params);
       if (simulateResults.length === 0) throw new Error('Simulate withdraw result length must be 1');
@@ -442,7 +431,10 @@ export class TorchSDK {
       throw new Error('In single mode, amount out length must be 1');
     }
 
-    // Calculate minAmountOuts based on on mode
+    let amountOuts: Allocation[] = [];
+    let nextAmountOuts: Allocation[] | null = null;
+
+    // Calculate amountOuts based on mode
     if (parsedParams.mode === 'Balanced') {
       amountOuts = Allocation.createAllocations(
         pool.assets.map(({ asset }, i) => ({
@@ -450,14 +442,6 @@ export class TorchSDK {
           value: simulateResult.amountOuts[i]!,
         })),
       );
-      if (parsedParams.slippageTolerance) {
-        minAmountOuts = Allocation.createAllocations(
-          pool.assets.map(({ asset }, i) => ({
-            asset,
-            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[i]!, parsedParams.slippageTolerance!),
-          })),
-        );
-      }
     }
     if (parsedParams.mode === 'Single') {
       amountOuts = Allocation.createAllocations([
@@ -466,14 +450,6 @@ export class TorchSDK {
           value: simulateResult.amountOuts[0]!,
         },
       ]);
-      if (parsedParams.slippageTolerance) {
-        minAmountOuts = Allocation.createAllocations([
-          {
-            asset: withdrawSingleAsset!,
-            value: calculateMinAmountOutBySlippage(simulateResult.amountOuts[0]!, parsedParams.slippageTolerance!),
-          },
-        ]);
-      }
     }
 
     if (parsedParams.nextWithdraw && nextPool) {
@@ -497,7 +473,7 @@ export class TorchSDK {
         throw new Error('In single mode, amount out length must be 1');
       }
 
-      // Calculate nextMinAmountOuts based on on mode
+      // Calculate nextAmountOuts based on mode
       if (parsedParams.nextWithdraw.mode === 'Balanced') {
         nextAmountOuts = Allocation.createAllocations(
           nextPool.assets.map(({ asset }, i) => ({
@@ -505,14 +481,6 @@ export class TorchSDK {
             value: nextSimulateResult.amountOuts[i],
           })),
         );
-        if (parsedParams.slippageTolerance) {
-          nextMinAmountOuts = Allocation.createAllocations(
-            nextPool.assets.map(({ asset }, i) => ({
-              asset,
-              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[i], parsedParams.slippageTolerance!),
-            })),
-          );
-        }
       }
       if (parsedParams.nextWithdraw.mode === 'Single') {
         nextAmountOuts = Allocation.createAllocations([
@@ -521,18 +489,54 @@ export class TorchSDK {
             value: nextSimulateResult.amountOuts[0],
           },
         ]);
-        if (parsedParams.slippageTolerance) {
-          nextMinAmountOuts = Allocation.createAllocations([
-            {
-              asset: parsedParams.nextWithdraw.withdrawAsset!,
-              value: calculateMinAmountOutBySlippage(nextSimulateResult.amountOuts[0], parsedParams.slippageTolerance!),
-            },
-          ]);
-        }
       }
     }
 
-    return { amountOuts, nextAmountOuts, minAmountOuts, nextMinAmountOuts };
+    return { amountOuts, nextAmountOuts };
+  }
+
+  private async calculateWithdrawMinAmountOuts(
+    params: WithdrawParams,
+    pools: PoolResponse[],
+    withdrawAsset: Asset | undefined,
+    simulateResults?: SimulateWithdrawResult[],
+  ): Promise<{
+    minAmountOuts: Allocation[] | null;
+    nextMinAmountOuts: Allocation[] | null;
+  }> {
+    const parsedParams = WithdrawParamsSchema.parse(params);
+
+    let minAmountOuts: Allocation[] | null = null;
+    let nextMinAmountOuts: Allocation[] | null = null;
+
+    if (parsedParams.slippageTolerance) {
+      // Calculate amountOuts
+      const { amountOuts, nextAmountOuts } = await this.calculateWithdrawAmountOuts(
+        params,
+        pools,
+        withdrawAsset,
+        simulateResults,
+      );
+      // Calculate minAmountOuts for primary withdraw
+      minAmountOuts = Allocation.createAllocations(
+        amountOuts.map(({ asset, value }) => ({
+          asset,
+          value: calculateMinAmountOutBySlippage(value, parsedParams.slippageTolerance!),
+        })),
+      );
+
+      // Calculate nextMinAmountOuts if there's a next withdraw
+      if (nextAmountOuts) {
+        nextMinAmountOuts = Allocation.createAllocations(
+          nextAmountOuts.map(({ asset, value }) => ({
+            asset,
+            value: calculateMinAmountOutBySlippage(value, parsedParams.slippageTolerance!),
+          })),
+        );
+      }
+    }
+
+    return { minAmountOuts, nextMinAmountOuts };
   }
 
   private async prepareDepositAllocations(
@@ -1137,8 +1141,16 @@ export class TorchSDK {
     // Prepare withdrawAsset
     const { withdrawAsset } = this.prepareWithdrawAsset(params, pools.at(1));
 
+    // Calculate amountOuts
+    const { amountOuts, nextAmountOuts } = await this.calculateWithdrawAmountOuts(
+      params,
+      pools,
+      withdrawAsset,
+      simulateResults,
+    );
+
     // Calculate minAmountOuts
-    const { amountOuts, nextAmountOuts, minAmountOuts, nextMinAmountOuts } = await this.calculateWithdrawMinAmountOuts(
+    const { minAmountOuts, nextMinAmountOuts } = await this.calculateWithdrawMinAmountOuts(
       params,
       pools,
       withdrawAsset,
