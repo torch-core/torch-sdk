@@ -2,14 +2,14 @@ import { Address } from '@ton/core';
 import { Asset } from '@torch-finance/core';
 
 export abstract class FactoryConfig {
-  static readonly FACTORY_ADDRESS = Address.parse('EQDwc-SpKN-OWtossgICrQ9bXRuF03LAKnivbZM19DUx2mPP');
+  static readonly FACTORY_ADDRESS = Address.parse('EQCNvyhu-VxeL7i-Uk5Uu0m7TO0qQaWQlHmGOUyUh1hoF7au');
 }
 
 export abstract class PoolConfig {
-  static readonly TRI_TON_POOL_ADDRESS = Address.parse('EQDUb8w_eYHG76W0J8CRigX1kcvC3j7iOUSTQwkVYXizmHg4');
-  static readonly QUA_TON_POOL_ADDRESS = Address.parse('EQDm65ai1Xw3BRs6xKBuAxqYmyR2q8KTPUFubL6gZ8_HeUxD');
-  static readonly TRI_USD_POOL_ADDRESS = Address.parse('EQCRpkDXpfnSFASzzVtSJWyCVkMq29pApoRZQfVExo1lm_aX');
-  static readonly QUA_USD_POOL_ADDRESS = Address.parse('EQBiifp1zwfPloZrLrLuhAQ8igTVnOiwCHxEsppV1T6dC0Ns');
+  static readonly TRI_TON_POOL_ADDRESS = Address.parse('EQB2iUVMu3yffZO9sAG3xadzXgdPPl43MaXK9s8Hd8xQgQFO');
+  static readonly QUA_TON_POOL_ADDRESS = Address.parse('EQByR2K2VfLPgqymDpL-laP73TmC_p5T5l12GohWfyMcJiAR');
+  static readonly TRI_USD_POOL_ADDRESS = Address.parse('EQDd3tIi7KiZOvMUSuFMcLf0-mpMxzcl0C7wbR7n74rjjiPh');
+  static readonly QUA_USD_POOL_ADDRESS = Address.parse('EQCzRegVehAdD5EdipiV-1rCGCM9RefcHL4NYMp9m60M_ApQ');
 }
 
 export abstract class PoolAssets {
@@ -28,7 +28,7 @@ export abstract class PoolAssets {
 }
 
 export abstract class MockSettings {
-  static readonly emulateBlockSeq = 28112908;
+  static readonly emulateBlockSeq = 28476052;
   static readonly sender = Address.parse('0QBtvbUwvUMHWiYt85cqAjtMSTOoDCufuBEhh7m6czZTn0wF');
 }
 
