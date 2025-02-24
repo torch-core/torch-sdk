@@ -51,7 +51,7 @@ export class TorchSDK {
 
   constructor(readonly options?: TorchSDKOptions) {
     // Fill in the default values (if not provided)
-    const factoryAddress = options?.factoryAddress || Address.parse('EQCt4Hb5e1EdUuKqMcvzEdBqM7Ryyie--cbE1uOmy7MpY7Fx');
+    const factoryAddress = options?.factoryAddress || Address.parse('EQDQIhFLSzUlaHKM9L2ZQS-o0iNHTbOSBtzNC0VLxPbNFH6E');
     const indexerEndpoint = options?.apiEndpoint || 'https://api.torch.finance';
     const oracleEndpoint = options?.oracleEndpoint || 'https://oracle.torch.finance';
     const simulateMode = options?.simulateMode || 'offchain';
