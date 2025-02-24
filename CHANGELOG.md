@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.2.2
+
+### Patch Changes
+
+- d8cc8ad: Update mainnet config
+
 ## 1.2.1
 
 ### Patch Changes
