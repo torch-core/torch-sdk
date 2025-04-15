@@ -96,9 +96,10 @@ export class TorchAPI {
         virtualPriceAfter: string;
       }[]
     >('/simulate/swap', {
+      ...requestPayload,
       assetIn: parsedParams.assetIn,
       assetOut: parsedParams.assetOut,
-      ...requestPayload,
+      routes: parsedParams.routes,
     });
     return data.map((result) => {
       return params.mode === 'ExactIn'
