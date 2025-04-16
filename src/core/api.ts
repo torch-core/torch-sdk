@@ -99,7 +99,7 @@ export class TorchAPI {
       ...requestPayload,
       assetIn: parsedParams.assetIn,
       assetOut: parsedParams.assetOut,
-      routes: parsedParams.routes,
+      routes: parsedParams.routes?.map((r) => r.toString()),
     });
     return data.map((result) => {
       return params.mode === 'ExactIn'
