@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.2.3
+
+### Patch Changes
+
+- 3b6f7f7: Added swap with routes method
+
 ## 1.2.2
 
 ### Patch Changes
