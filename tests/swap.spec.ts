@@ -40,7 +40,6 @@ describe('Swap Testcases', () => {
   let senderUSDCWallet: SandboxContract<JettonWallet>;
   let senderScrvUSDWallet: SandboxContract<JettonWallet>;
   let senderQuaUSDWallet: SandboxContract<JettonWallet>;
-  let senderTgUSDWallet: SandboxContract<JettonWallet>;
   let senderStgUSDWallet: SandboxContract<JettonWallet>;
 
   // Recipient Jetton Wallet
@@ -85,7 +84,6 @@ describe('Swap Testcases', () => {
       senderUSDCWallet,
       senderScrvUSDWallet,
       senderQuaUSDWallet,
-      senderTgUSDWallet,
       senderStgUSDWallet,
       stTON,
       tsTON,
@@ -135,7 +133,6 @@ describe('Swap Testcases', () => {
       senderUSDCWallet.getBalance(),
       senderScrvUSDWallet.getBalance(),
       senderQuaUSDWallet.getBalance(),
-      senderTgUSDWallet.getBalance(),
       senderStgUSDWallet.getBalance(),
     ]);
   });
