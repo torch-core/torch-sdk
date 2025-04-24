@@ -123,7 +123,6 @@ describe('Swap Testcases', () => {
       senderUSDCBalBefore,
       senderSCRVUSDBalBefore,
       senderQuaUSDBalBefore,
-      senderTgUSDBalBefore,
       senderStgUSDBalBefore,
     ] = await Promise.all([
       blockchain.getContract(sender).then((contract) => contract.balance),
