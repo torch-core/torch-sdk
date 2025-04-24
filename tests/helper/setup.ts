@@ -43,6 +43,8 @@ export const initialize = async () => {
   const USDC = blockchain.openContract(JettonMaster.create(PoolAssets.USDC.jettonMaster!));
   const CRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.CRV_USD.jettonMaster!));
   const SCRV_USD = blockchain.openContract(JettonMaster.create(PoolAssets.SCRV_USD.jettonMaster!));
+  const tgUSD = blockchain.openContract(JettonMaster.create(PoolAssets.TGUSD.jettonMaster!));
+  const stgUSD = blockchain.openContract(JettonMaster.create(PoolAssets.STGUSD.jettonMaster!));
 
   // Initialize Sender Jetton Wallets using Promise.all
   const [
@@ -57,6 +59,8 @@ export const initialize = async () => {
     senderQuaTONWallet,
     senderTriUSDWallet,
     senderQuaUSDWallet,
+    senderTgUSDWallet,
+    senderStgUSDWallet,
   ] = await Promise.all([
     stTON
       .getWalletAddress(MockSettings.sender)
@@ -83,6 +87,12 @@ export const initialize = async () => {
       .getWalletAddress(MockSettings.sender)
       .then((address) => blockchain.openContract(JettonWallet.create(address))),
     quaUSDPool
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    tgUSD
+      .getWalletAddress(MockSettings.sender)
+      .then((address) => blockchain.openContract(JettonWallet.create(address))),
+    stgUSD
       .getWalletAddress(MockSettings.sender)
       .then((address) => blockchain.openContract(JettonWallet.create(address))),
   ]);
@@ -162,6 +172,8 @@ export const initialize = async () => {
     senderQuaTONWallet,
     senderTriUSDWallet,
     senderQuaUSDWallet,
+    senderTgUSDWallet,
+    senderStgUSDWallet,
     send,
     swapImpactTriTON,
     swapImpactQuaTON,

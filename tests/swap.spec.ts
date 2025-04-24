@@ -40,6 +40,7 @@ describe('Swap Testcases', () => {
   let senderUSDCWallet: SandboxContract<JettonWallet>;
   let senderScrvUSDWallet: SandboxContract<JettonWallet>;
   let senderQuaUSDWallet: SandboxContract<JettonWallet>;
+  let senderStgUSDWallet: SandboxContract<JettonWallet>;
 
   // Recipient Jetton Wallet
   let recipientStTONWallet: SandboxContract<JettonWallet>;
@@ -58,6 +59,7 @@ describe('Swap Testcases', () => {
   let senderUSDCBalBefore: bigint;
   let senderSCRVUSDBalBefore: bigint;
   let senderQuaUSDBalBefore: bigint;
+  let senderStgUSDBalBefore: bigint;
 
   // Send function
   let send: (args: SenderArguments[] | SenderArguments) => Promise<void>;
@@ -82,6 +84,7 @@ describe('Swap Testcases', () => {
       senderUSDCWallet,
       senderScrvUSDWallet,
       senderQuaUSDWallet,
+      senderStgUSDWallet,
       stTON,
       tsTON,
       hTON,
@@ -118,6 +121,7 @@ describe('Swap Testcases', () => {
       senderUSDCBalBefore,
       senderSCRVUSDBalBefore,
       senderQuaUSDBalBefore,
+      senderStgUSDBalBefore,
     ] = await Promise.all([
       blockchain.getContract(sender).then((contract) => contract.balance),
       senderStTONWallet.getBalance(),
@@ -129,6 +133,7 @@ describe('Swap Testcases', () => {
       senderUSDCWallet.getBalance(),
       senderScrvUSDWallet.getBalance(),
       senderQuaUSDWallet.getBalance(),
+      senderStgUSDWallet.getBalance(),
     ]);
   });
 
@@ -1450,6 +1455,100 @@ describe('Swap Testcases', () => {
           await Promise.all([
             // Sender QuaUSD balance should be decreased
             checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore, amountIn),
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+          ]);
+        });
+      });
+
+      describe('Cross pool swap in tgUSD/USDT pool and stgUSD/tgUSD Pool', () => {
+        it('should swap USDT to stgUSD (ExactIn)', async () => {
+          const amountIn = 100000n;
+          const swapExactInParams: SwapParams = {
+            mode: 'ExactIn',
+            assetIn: PoolAssets.USDT,
+            assetOut: PoolAssets.STGUSD,
+            amountIn,
+            slippageTolerance: 0.01,
+            routes: [PoolConfig.TGUSD_USDT_POOL, PoolConfig.STGUSD_USDT_POOL],
+          };
+
+          // Send swap
+          const sendExactInArgs = await getPayload(torchSDK, swapExactInParams, sender);
+          await send(sendExactInArgs);
+
+          await Promise.all([
+            // Sender USDT balance should be decreased
+            checkJettonBalDecrease(senderUSDTWallet, senderUSDTBalBefore, amountIn),
+            // Sender stgUSD balance should be increased
+            checkJettonBalIncrease(senderStgUSDWallet, senderStgUSDBalBefore),
+          ]);
+        });
+
+        it('should swap USDT to stgUSD (ExactOut)', async () => {
+          const amountOut = 100000n;
+          const swapExactOutParams: SwapParams = {
+            mode: 'ExactOut',
+            assetIn: PoolAssets.USDT,
+            assetOut: PoolAssets.STGUSD,
+            amountOut,
+            slippageTolerance: 0.01,
+            routes: [PoolConfig.TGUSD_USDT_POOL, PoolConfig.STGUSD_USDT_POOL],
+          };
+
+          // Send swap
+          const sendExactOutArgs = await getPayload(torchSDK, swapExactOutParams, sender);
+          await send(sendExactOutArgs);
+
+          await Promise.all([
+            // Sender USDT balance should be decreased
+            checkJettonBalDecrease(senderUSDTWallet, senderUSDTBalBefore),
+            // Sender stgUSD balance should be increased
+            checkJettonBalIncrease(senderStgUSDWallet, senderStgUSDBalBefore),
+          ]);
+        });
+
+        it('should swap stgUSD to USDT (ExactIn)', async () => {
+          const amountIn = 100000n;
+          const swapExactInParams: SwapParams = {
+            mode: 'ExactIn',
+            assetIn: PoolAssets.STGUSD,
+            assetOut: PoolAssets.USDT,
+            amountIn,
+            slippageTolerance: 0.01,
+            routes: [PoolConfig.STGUSD_USDT_POOL, PoolConfig.TGUSD_USDT_POOL],
+          };
+
+          // Send swap
+          const sendExactInArgs = await getPayload(torchSDK, swapExactInParams, sender);
+          await send(sendExactInArgs);
+
+          await Promise.all([
+            // Sender stgUSD balance should be decreased
+            checkJettonBalDecrease(senderStgUSDWallet, senderStgUSDBalBefore, amountIn),
+            // Sender USDT balance should be increased
+            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+          ]);
+        });
+
+        it('should swap stgUSD to USDT (ExactOut)', async () => {
+          const amountOut = 100000n;
+          const swapExactOutParams: SwapParams = {
+            mode: 'ExactOut',
+            assetIn: PoolAssets.STGUSD,
+            assetOut: PoolAssets.USDT,
+            amountOut,
+            slippageTolerance: 0.01,
+            routes: [PoolConfig.STGUSD_USDT_POOL, PoolConfig.TGUSD_USDT_POOL],
+          };
+
+          // Send swap
+          const sendExactOutArgs = await getPayload(torchSDK, swapExactOutParams, sender);
+          await send(sendExactOutArgs);
+
+          await Promise.all([
+            // Sender stgUSD balance should be decreased
+            checkJettonBalDecrease(senderStgUSDWallet, senderStgUSDBalBefore),
             // Sender USDT balance should be increased
             checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
           ]);
