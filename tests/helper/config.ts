@@ -10,6 +10,8 @@ export abstract class PoolConfig {
   static readonly QUA_TON_POOL_ADDRESS = Address.parse('EQByR2K2VfLPgqymDpL-laP73TmC_p5T5l12GohWfyMcJiAR');
   static readonly TRI_USD_POOL_ADDRESS = Address.parse('EQDd3tIi7KiZOvMUSuFMcLf0-mpMxzcl0C7wbR7n74rjjiPh');
   static readonly QUA_USD_POOL_ADDRESS = Address.parse('EQCzRegVehAdD5EdipiV-1rCGCM9RefcHL4NYMp9m60M_ApQ');
+  static readonly TGUSD_USDT_POOL = Address.parse('EQDgiSowOPf0jBQHzTAoy9Xufi78MebQFLJepimJ2z6L9u5l');
+  static readonly STGUSD_USDT_POOL = Address.parse('EQB2-6yKBXGr8iPY6hLt6fqsAF43AJ4x6FVghp5wJTh6JaBu');
 }
 
 export abstract class PoolAssets {
@@ -25,10 +27,12 @@ export abstract class PoolAssets {
   static readonly SCRV_USD = Asset.jetton(Address.parse('EQBN8qMhmCS2yj9a7KqRJTGPv8AZmfsBnRrw3ClODwpyus8v'));
   static readonly TRI_USD = Asset.jetton(PoolConfig.TRI_USD_POOL_ADDRESS);
   static readonly QUA_USD = Asset.jetton(PoolConfig.QUA_USD_POOL_ADDRESS);
+  static readonly TGUSD = Asset.jetton('EQCyeymJ7CwbDLzp7UA6RabIDpRGo34hQ1bXMLS9fllESSPB');
+  static readonly STGUSD = Asset.jetton('EQDLoru6i-vGoYEfe7LHNdZlGyq77T78IMR7jbGyubZ5A5ZE');
 }
 
 export abstract class MockSettings {
-  static readonly emulateBlockSeq = 28476052;
+  static readonly emulateBlockSeq = 30441616;
   static readonly sender = Address.parse('0QBtvbUwvUMHWiYt85cqAjtMSTOoDCufuBEhh7m6czZTn0wF');
 }
 
