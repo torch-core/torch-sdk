@@ -55,7 +55,7 @@
     "@ton/sandbox": "^0.24.0",
     "@ton/ton": "^15.1.0",
     "@torch-finance/core": "^1.3.2",
-    "@torch-finance/simulator": "^0.3.5",
+    "@torch-finance/simulator": "^0.4.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.5",
     "@typescript-eslint/eslint-plugin": "^8.19.1",
