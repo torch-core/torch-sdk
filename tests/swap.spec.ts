@@ -1470,7 +1470,6 @@ describe('Swap Testcases', () => {
             assetOut: PoolAssets.STGUSD,
             amountIn,
             slippageTolerance: 0.01,
-            routes: [PoolConfig.TGUSD_USDT_POOL, PoolConfig.STGUSD_USDT_POOL],
           };
 
           // Send swap
@@ -1493,7 +1492,6 @@ describe('Swap Testcases', () => {
             assetOut: PoolAssets.STGUSD,
             amountOut,
             slippageTolerance: 0.01,
-            routes: [PoolConfig.TGUSD_USDT_POOL, PoolConfig.STGUSD_USDT_POOL],
           };
 
           // Send swap
@@ -1516,7 +1514,6 @@ describe('Swap Testcases', () => {
             assetOut: PoolAssets.USDT,
             amountIn,
             slippageTolerance: 0.01,
-            routes: [PoolConfig.STGUSD_USDT_POOL, PoolConfig.TGUSD_USDT_POOL],
           };
 
           // Send swap
@@ -1539,7 +1536,6 @@ describe('Swap Testcases', () => {
             assetOut: PoolAssets.USDT,
             amountOut,
             slippageTolerance: 0.01,
-            routes: [PoolConfig.STGUSD_USDT_POOL, PoolConfig.TGUSD_USDT_POOL],
           };
 
           // Send swap
