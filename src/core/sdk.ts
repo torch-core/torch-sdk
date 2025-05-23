@@ -596,7 +596,7 @@ export class TorchSDK {
   }
 
   private buildExtraPayload(referralCode: bigint): Dictionary<bigint, Cell> {
-    const dict = Dictionary.empty(Dictionary.Keys.BigUint(64), Dictionary.Values.Cell());
+    const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
     const referralKey = BigInt(`0x${sha256_sync('referral').toString('hex')}`);
     const referralValue = beginCell().storeUint(referralCode, 32).endCell();
     dict.set(referralKey, referralValue);
