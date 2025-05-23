@@ -3,7 +3,7 @@ import { Asset, AddressSchema } from '@torch-finance/core';
 import { MinAmountOut } from '../common/zod';
 import { QueryId } from '../common/zod';
 import { SlippageSchema } from '../common/slippage';
-import { Cell } from '@ton/core';
+import { Cell, Dictionary } from '@ton/core';
 import Decimal from 'decimal.js';
 
 const GeneralSwapParamsSchema = z.object({
@@ -17,7 +17,7 @@ const GeneralSwapParamsSchema = z.object({
   recipient: AddressSchema.optional(),
   fulfillPayload: z.instanceof(Cell).optional(),
   rejectPayload: z.instanceof(Cell).optional(),
-  extraPayload: z.null().optional(),
+  extraPayload: z.custom<Dictionary<bigint, Cell>>().nullish(),
 });
 
 export const ExactInParamsSchema = GeneralSwapParamsSchema.extend({

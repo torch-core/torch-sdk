@@ -2,6 +2,8 @@ import { DepositNext, SwapNext, WithdrawNext } from '@torch-finance/dex-contract
 import { Allocation, Asset } from '@torch-finance/core';
 
 import { Hop } from '../types/common';
+import { Cell } from '@ton/core';
+import { Dictionary } from '@ton/core';
 
 /**
  * Build the next operation in the transaction sequence
@@ -9,7 +11,11 @@ import { Hop } from '../types/common';
  * @param minAmountOuts - The minimum amount out for each hop
  * @returns The next operation in the transaction sequence
  */
-export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext | WithdrawNext | DepositNext | null {
+export function buildSwapNext(
+  hops: Hop[],
+  minAmountOuts?: bigint[],
+  extraPayload?: Dictionary<bigint, Cell>,
+): SwapNext | WithdrawNext | DepositNext | null {
   if (hops.length === 0) {
     return null;
   }
@@ -26,7 +32,8 @@ export function buildSwapNext(hops: Hop[], minAmountOuts?: bigint[]): SwapNext |
       nextPoolAddress: firstRoute.pool.address,
       assetOut: firstRoute.assetOut,
       minAmountOut: minAmountOuts?.at(0),
-      next: buildSwapNext(restRoutes, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
+      extraPayload,
+      next: buildSwapNext(restRoutes, minAmountOuts?.slice(1), extraPayload) as SwapNext | WithdrawNext,
     };
   } else if (firstRoute?.action === 'Withdraw') {
     /**

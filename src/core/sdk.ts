@@ -1,5 +1,5 @@
 // External Libs
-import { Address, OpenedContract, SenderArguments } from '@ton/core';
+import { Address, beginCell, Cell, Dictionary, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
 // Torch Libs
 import {
@@ -33,6 +33,7 @@ import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calcul
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
 import { AssetResponse } from '../types/api';
+import { sha256_sync } from '@ton/crypto';
 
 export type TorchSDKOptions = {
   apiEndpoint?: string;
@@ -594,6 +595,14 @@ export class TorchSDK {
     return { withdrawAsset };
   }
 
+  private buildExtraPayload(referralCode: bigint): Dictionary<bigint, Cell> {
+    const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
+    const referralKey = BigInt(`0x${sha256_sync('referral').toString('hex')}`);
+    const referralValue = beginCell().storeUint(referralCode, 32).endCell();
+    dict.set(referralKey, referralValue);
+    return dict;
+  }
+
   private async buildSwapPayload(
     sender: Address,
     params: SwapParams,
@@ -601,7 +610,7 @@ export class TorchSDK {
     minAmountOuts: bigint[] | null,
     hops: Hop[],
     signedRate: SignedRate | null,
-    options?: { blockNumber?: number },
+    options?: { blockNumber?: number; referralCode?: bigint },
   ): Promise<SenderArguments> {
     const factory = this.openFactory(options?.blockNumber);
     // Parse exact in params
@@ -610,6 +619,7 @@ export class TorchSDK {
       mode: 'ExactIn',
       amountIn,
     });
+    const extraPayload = options?.referralCode ? this.buildExtraPayload(options.referralCode) : undefined;
 
     const [firstHop, ...restHops] = hops;
     if (!firstHop) throw new Error('No hops found');
@@ -629,9 +639,9 @@ export class TorchSDK {
           signedRate: signedRate,
           fulfillPayload: parsedExactInParams.fulfillPayload,
           rejectPayload: parsedExactInParams.rejectPayload,
-          extraPayload: undefined,
+          extraPayload,
         },
-        next: buildSwapNext(restHops, minAmountOuts?.slice(1)) as SwapNext | WithdrawNext,
+        next: buildSwapNext(restHops, minAmountOuts?.slice(1), extraPayload) as SwapNext | WithdrawNext,
       });
       return senderArgs;
     }
