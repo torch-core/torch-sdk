@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.4.0
+
+### Minor Changes
+
+- 6bae0fd: Update referral key generation & size of extra payload
+
 ## 1.3.1
 
 ### Patch Changes
