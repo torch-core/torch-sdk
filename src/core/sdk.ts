@@ -806,7 +806,7 @@ export class TorchSDK {
   async getSwapPayload(
     sender: Address,
     params: SwapParams,
-    options?: { blockNumber?: number },
+    options?: { blockNumber?: number; referralCode?: bigint },
   ): Promise<SenderArguments> {
     // Get hops
     const { hops, routes } = await this.getSwapRoutes(params);

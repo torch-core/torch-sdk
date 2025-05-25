@@ -75,6 +75,11 @@ export const SwapParamsSchema = z
     };
   });
 
-export type SwapParams = z.input<typeof SwapParamsSchema>;
+type BaseSwapParams = z.input<typeof SwapParamsSchema>;
+
+export type SwapParams =
+  | Omit<Extract<BaseSwapParams, { mode: 'ExactIn' }>, 'extraPayload'>
+  | Omit<Extract<BaseSwapParams, { mode: 'ExactOut' }>, 'extraPayload'>;
+
 export type ParsedSwapParams = z.infer<typeof SwapParamsSchema>;
 export type SwapMode = ParsedSwapParams['mode'];
