@@ -1,5 +1,5 @@
 // External Libs
-import { Address, beginCell, Cell, Dictionary, OpenedContract, SenderArguments } from '@ton/core';
+import { Address, beginCell, Cell, crc32c, Dictionary, OpenedContract, SenderArguments } from '@ton/core';
 import { TonClient4 } from '@ton/ton';
 // Torch Libs
 import {
@@ -33,7 +33,6 @@ import { generateQueryId, buildSwapNext, calculateMinAmountOutBySlippage, calcul
 import { Simulator } from './simulator';
 import { TorchAPI } from './api';
 import { AssetResponse } from '../types/api';
-import { sha256_sync } from '@ton/crypto';
 
 export type TorchSDKOptions = {
   apiEndpoint?: string;
@@ -596,8 +595,8 @@ export class TorchSDK {
   }
 
   private buildExtraPayload(referralCode: bigint): Dictionary<bigint, Cell> {
-    const dict = Dictionary.empty(Dictionary.Keys.BigUint(256), Dictionary.Values.Cell());
-    const referralKey = BigInt(`0x${sha256_sync('referral').toString('hex')}`);
+    const dict = Dictionary.empty(Dictionary.Keys.BigUint(32), Dictionary.Values.Cell());
+    const referralKey = BigInt(`0x${crc32c(Buffer.from('referral')).toString('hex')}`);
     const referralValue = beginCell().storeUint(referralCode, 32).endCell();
     dict.set(referralKey, referralValue);
     return dict;
