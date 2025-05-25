@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.3.0
+
+### Minor Changes
+
+- a173d1c: Enable referral code in swap operations
+
 ## 1.2.4
 
 ### Patch Changes
