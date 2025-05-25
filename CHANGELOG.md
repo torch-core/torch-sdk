@@ -1,5 +1,11 @@
 # @torch-finance/sdk
 
+## 1.3.1
+
+### Patch Changes
+
+- 534ee94: Fix swap params still has extra payload and options miss the referral code
+
 ## 1.3.0
 
 ### Minor Changes
