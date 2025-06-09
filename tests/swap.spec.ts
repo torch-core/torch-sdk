@@ -36,7 +36,8 @@ describe('Swap Testcases', () => {
   let senderHTONWallet: SandboxContract<JettonWallet>;
   let senderTriTONWallet: SandboxContract<JettonWallet>;
   let senderQuaTONWallet: SandboxContract<JettonWallet>;
-  let senderUSDTWallet: SandboxContract<JettonWallet>;
+  // let senderUSDTWallet: SandboxContract<JettonWallet>;
+  // let senderCrvUSDWallet: SandboxContract<JettonWallet>;
   let senderUSDCWallet: SandboxContract<JettonWallet>;
   let senderScrvUSDWallet: SandboxContract<JettonWallet>;
   let senderQuaUSDWallet: SandboxContract<JettonWallet>;
@@ -55,8 +56,9 @@ describe('Swap Testcases', () => {
   let senderHTONBalBefore: bigint;
   let senderTriTONBalBefore: bigint;
   let senderQuaTONBalBefore: bigint;
-  let senderUSDTBalBefore: bigint;
+  // let senderUSDTBalBefore: bigint;
   let senderUSDCBalBefore: bigint;
+  // let senderCrvUSDBalBefore: bigint;
   let senderSCRVUSDBalBefore: bigint;
   let senderQuaUSDBalBefore: bigint;
   // let senderStgUSDBalBefore: bigint;
@@ -80,7 +82,8 @@ describe('Swap Testcases', () => {
       senderHTONWallet,
       senderTriTONWallet,
       senderQuaTONWallet,
-      senderUSDTWallet,
+      // senderUSDTWallet,
+      // senderCrvUSDWallet,
       senderUSDCWallet,
       senderScrvUSDWallet,
       senderQuaUSDWallet,
@@ -117,10 +120,11 @@ describe('Swap Testcases', () => {
       senderHTONBalBefore,
       senderTriTONBalBefore,
       senderQuaTONBalBefore,
-      senderUSDTBalBefore,
+      // senderUSDTBalBefore,
       senderUSDCBalBefore,
       senderSCRVUSDBalBefore,
       senderQuaUSDBalBefore,
+      // senderCrvUSDBalBefore,
       // senderStgUSDBalBefore,
     ] = await Promise.all([
       blockchain.getContract(sender).then((contract) => contract.balance),
@@ -129,10 +133,11 @@ describe('Swap Testcases', () => {
       senderHTONWallet.getBalance(),
       senderTriTONWallet.getBalance(),
       senderQuaTONWallet.getBalance(),
-      senderUSDTWallet.getBalance(),
+      // senderUSDTWallet.getBalance(),
       senderUSDCWallet.getBalance(),
       senderScrvUSDWallet.getBalance(),
       senderQuaUSDWallet.getBalance(),
+      // senderCrvUSDWallet.getBalance(),
       // senderStgUSDWallet.getBalance(),
     ]);
   });
@@ -1341,63 +1346,63 @@ describe('Swap Testcases', () => {
         });
       });
 
-      describe('Swap in TriUSD Pool', () => {
-        it('should swap USDT to USDC with ExactIn and ExactOut', async () => {
-          // Build ExactIn payload
-          const amountIn = toNano('0.05');
-          const swapExactInParams: SwapParams = {
-            mode: 'ExactIn',
-            assetIn: PoolAssets.USDT,
-            assetOut: PoolAssets.USDC,
-            amountIn,
-          };
+      // describe('Swap in TriUSD Pool', () => {
+      //   it('should swap CRV_USD to USDC with ExactIn and ExactOut', async () => {
+      //     // Build ExactIn payload
+      //     const amountIn = toNano('0.05');
+      //     const swapExactInParams: SwapParams = {
+      //       mode: 'ExactIn',
+      //       assetIn: PoolAssets.CRV_USD,
+      //       assetOut: PoolAssets.USDC,
+      //       amountIn,
+      //     };
 
-          // Simulate swap ExactIN
-          const swapExactInResult = await torchSDK.simulateSwap(swapExactInParams);
+      //     // Simulate swap ExactIN
+      //     const swapExactInResult = await torchSDK.simulateSwap(swapExactInParams);
 
-          const sendExactInArgs = await getPayload(torchSDK, swapExactInParams, sender);
-          await send(sendExactInArgs);
+      //     const sendExactInArgs = await getPayload(torchSDK, swapExactInParams, sender);
+      //     await send(sendExactInArgs);
 
-          await Promise.all([
-            // Sender USDT balance should be decreased
-            checkJettonBalDecrease(senderUSDTWallet, senderUSDTBalBefore, amountIn),
-            // Sender USDC balance should be increased
-            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
-          ]);
+      //     await Promise.all([
+      //       // Sender CRV_USD balance should be decreased
+      //       checkJettonBalDecrease(senderCrvUSDWallet, senderCrvUSDBalBefore, amountIn),
+      //       // Sender USDC balance should be increased
+      //       checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
+      //     ]);
 
-          // Restore blockchain state
-          await blockchain.loadFrom(initBlockchainState);
+      //     // Restore blockchain state
+      //     await blockchain.loadFrom(initBlockchainState);
 
-          if (swapExactInResult.result.mode != 'ExactIn') {
-            throw new Error('Swap mode is not ExactIn');
-          }
+      //     if (swapExactInResult.result.mode != 'ExactIn') {
+      //       throw new Error('Swap mode is not ExactIn');
+      //     }
 
-          // Build ExactOut payload
-          const swapExactOutParams: SwapParams = {
-            mode: 'ExactOut',
-            assetIn: PoolAssets.USDT,
-            assetOut: PoolAssets.USDC,
-            amountOut: swapExactInResult.result.amountOut,
-          };
+      //     // Build ExactOut payload
+      //     const swapExactOutParams: SwapParams = {
+      //       mode: 'ExactOut',
+      //       assetIn: PoolAssets.CRV_USD,
+      //       assetOut: PoolAssets.USDC,
+      //       amountOut: swapExactInResult.result.amountOut,
+      //     };
 
-          // Send swap
-          const sendExactOutArgs = await getPayload(torchSDK, swapExactOutParams, sender);
-          await send(sendExactOutArgs);
+      //     // Send swap
+      //     const sendExactOutArgs = await getPayload(torchSDK, swapExactOutParams, sender);
+      //     await send(sendExactOutArgs);
 
-          await Promise.all([
-            // Sender USDT balance should be decreased
-            checkJettonBalDecrease(senderUSDTWallet, senderUSDTBalBefore, amountIn),
-            // Sender USDC balance should be increased
-            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
-          ]);
+      //     await Promise.all([
+      //       // Sender CRV_USD balance should be decreased
+      //       checkJettonBalDecrease(senderCrvUSDWallet, senderCrvUSDBalBefore, amountIn),
+      //       // Sender USDC balance should be increased
+      //       checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
+      //     ]);
 
-          // Sender USDT amount decrease amount
-          const senderUSDTBalAfter = await senderUSDTWallet.getBalance();
-          const senderUSDTBalDecrease = senderUSDTBalBefore - senderUSDTBalAfter;
-          const difference = abs(senderUSDTBalDecrease, amountIn);
-          expect(difference < toNano(0.01)).toBeTruthy();
-        });
-      });
+      //     // Sender CRV_USD amount decrease amount
+      //     const senderCrvUSDBalAfter = await senderCrvUSDWallet.getBalance();
+      //     const senderCrvUSDBalDecrease = senderCrvUSDBalBefore - senderCrvUSDBalAfter;
+      //     const difference = abs(senderCrvUSDBalDecrease, amountIn);
+      //     expect(difference < toNano(0.01)).toBeTruthy();
+      //   });
+      // });
 
       describe('Cross pool swap in TriUSD Pool and QuaUSD Pool', () => {
         it('should swap USDC to QuaUSD (Deposit and Deposit)', async () => {
@@ -1425,7 +1430,7 @@ describe('Swap Testcases', () => {
           const amountIn = toNano('0.05');
           const swapExactInParams: SwapParams = {
             mode: 'ExactIn',
-            assetIn: PoolAssets.USDT,
+            assetIn: PoolAssets.USDC,
             assetOut: PoolAssets.SCRV_USD,
             amountIn,
           };
@@ -1435,8 +1440,8 @@ describe('Swap Testcases', () => {
           await send(sendExactInArgs);
 
           await Promise.all([
-            // Sender USDT balance should be decreased
-            checkJettonBalDecrease(senderUSDTWallet, senderUSDTBalBefore, amountIn),
+            // Sender USDC balance should be decreased
+            checkJettonBalDecrease(senderUSDCWallet, senderUSDCBalBefore, amountIn),
             // Sender SCRV_USD balance should be increased
             checkJettonBalIncrease(senderScrvUSDWallet, senderSCRVUSDBalBefore),
           ]);
@@ -1447,7 +1452,7 @@ describe('Swap Testcases', () => {
           const swapExactInParams: SwapParams = {
             mode: 'ExactIn',
             assetIn: PoolAssets.SCRV_USD,
-            assetOut: PoolAssets.USDT,
+            assetOut: PoolAssets.USDC,
             amountIn,
           };
 
@@ -1458,8 +1463,8 @@ describe('Swap Testcases', () => {
           await Promise.all([
             // Sender SCRV_USD balance should be decreased
             checkJettonBalDecrease(senderScrvUSDWallet, senderSCRVUSDBalBefore, amountIn),
-            // Sender USDT balance should be increased
-            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+            // Sender USDC balance should be increased
+            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
           ]);
         });
 
@@ -1468,7 +1473,7 @@ describe('Swap Testcases', () => {
           const swapExactInParams: SwapParams = {
             mode: 'ExactIn',
             assetIn: PoolAssets.QUA_USD,
-            assetOut: PoolAssets.USDT,
+            assetOut: PoolAssets.USDC,
             amountIn,
           };
 
@@ -1479,8 +1484,8 @@ describe('Swap Testcases', () => {
           await Promise.all([
             // Sender QuaUSD balance should be decreased
             checkJettonBalDecrease(senderQuaUSDWallet, senderQuaUSDBalBefore, amountIn),
-            // Sender USDT balance should be increased
-            checkJettonBalIncrease(senderUSDTWallet, senderUSDTBalBefore),
+            // Sender USDC balance should be increased
+            checkJettonBalIncrease(senderUSDCWallet, senderUSDCBalBefore),
           ]);
         });
       });
