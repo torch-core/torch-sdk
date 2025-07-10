@@ -1,5 +1,5 @@
 import { Blockchain, BlockchainSnapshot, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { TorchSDK, toUnit, WithdrawParams } from '../src';
+import { TorchSDK, toUnit, WithdrawParams } from '../../src';
 import { initialize } from './helper/setup';
 import { Decimals, PoolAssets } from './helper/config';
 import { Address, SenderArguments, toNano } from '@ton/core';

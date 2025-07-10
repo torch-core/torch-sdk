@@ -1,6 +1,5 @@
 import { Blockchain, BlockchainSnapshot, internal, SandboxContract, TreasuryContract } from '@ton/sandbox';
-import { DepositParams, TorchSDK, toUnit } from '../src';
-import { initialize } from './helper/setup';
+import { DepositParams, TorchSDK, toUnit } from '../../src';
 import { Decimals, PoolAssets } from './helper/config';
 import { Address, SenderArguments, toNano } from '@ton/core';
 import { JettonWallet } from '@ton/ton';
@@ -10,6 +9,7 @@ import {
   checkJettonBalNotChanged,
   checkTONBalDecrease,
 } from './helper/check';
+import { initialize } from './helper/setup';
 import { LpAccount, Pool } from '@torch-finance/dex-contract-wrapper';
 import { Allocation } from '@torch-finance/core';
 
