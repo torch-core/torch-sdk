@@ -5,6 +5,7 @@ export abstract class PoolAssets {
   static readonly TON = Asset.ton();
   static readonly TS_TON = Asset.jetton('EQC98_qAmNEptUtPc7W6xdHh_ZHrBUFpw5Ft_IzNU20QAJav');
   static readonly ST_TON = Asset.jetton('EQDNhy-nxYFgUqzfUzImBEP67JqsyMIcyk2S5_RwNNEYku0k');
+  static readonly TRI_TON = Asset.jetton('EQA4r_ieO3vJjsQtakcFu-iHpT1LFxdZkwV8yqNNElSmUW45');
 }
 
 export abstract class PoolAddresses {

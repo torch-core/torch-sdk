@@ -1,5 +1,11 @@
 import { Address, beginCell, Cell, Dictionary, SenderArguments, TonClient4 } from '@ton/ton';
-import { Blockchain, RemoteBlockchainStorage, wrapTonClient4ForRemote, internal } from '@ton/sandbox';
+import {
+  Blockchain,
+  RemoteBlockchainStorage,
+  wrapTonClient4ForRemote,
+  internal,
+  SendMessageResult,
+} from '@ton/sandbox';
 
 export const tonClient = new TonClient4({
   endpoint: 'https://mainnet-v4.tonhubapi.com',
@@ -19,23 +25,34 @@ export async function initialize(blockSeqno?: number) {
   return blockchain;
 }
 
-export async function send(blockchain: Blockchain, from: Address, arg: SenderArguments) {
-  if (!arg.body) {
-    throw new Error('Body is required');
+export async function send(blockchain: Blockchain, from: Address, args: SenderArguments | SenderArguments[]) {
+  let argsList: SenderArguments[] = [];
+  if (!Array.isArray(args)) {
+    argsList = [args];
+  } else {
+    argsList = args;
   }
+  const result: SendMessageResult[] = [];
 
-  const fromBalance = (await blockchain.getContract(from)).balance;
-  if (fromBalance < arg.value) {
-    throw new Error('Insufficient balance');
+  for (const arg of argsList) {
+    if (!arg.body) {
+      throw new Error('Body is required');
+    }
+
+    const fromBalance = (await blockchain.getContract(from)).balance;
+    if (fromBalance < arg.value) {
+      throw new Error('Insufficient balance');
+    }
+
+    const r = await blockchain.sendMessage(
+      internal({
+        from: from,
+        to: arg.to,
+        value: arg.value,
+        body: arg.body!,
+      }),
+    );
+    result.push(r);
   }
-
-  const r = await blockchain.sendMessage(
-    internal({
-      from: from,
-      to: arg.to,
-      value: arg.value,
-      body: arg.body!,
-    }),
-  );
-  return r;
+  return result;
 }
