@@ -1,5 +1,12 @@
 # @torch-finance/sdk
 
+## 1.4.1
+
+### Patch Changes
+
+- 1ca04f4: - Update the version of dex-contract-wrapper
+  - Add basic tests for mainnet
+
 ## 1.4.0
 
 ### Minor Changes

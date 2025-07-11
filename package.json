@@ -1,6 +1,6 @@
 {
   "name": "@torch-finance/sdk",
-  "version": "1.4.0",
+  "version": "1.4.1",
   "description": "",
   "packageManager": "pnpm@10.0.0",
   "engines": {
